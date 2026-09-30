@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  Repeat Reminders public website - privacy policy and support page required by Google Play.
+  API Gateway HTTP API (throttled, HTTPS) in front of a small Lambda that serves bundled static pages.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    why: >-
+      Google Play needs a stable public privacy policy URL. CloudFront was not available because the
+      account is not yet verified for CloudFront, so pages are served from Lambda behind a throttled HTTP API.
+    must:
+      - The PrivacyPolicyUrl output is registered in Play Console and inside the app; keep the API and its default stage.
+
+Resources:
+  SiteApi:
+    Type: AWS::Serverless::HttpApi
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Public HTTPS endpoint with throttling so the unauthenticated site cannot run up cost.
+        must:
+          - Replacing this API changes the public URL.
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingRateLimit: 20
+        ThrottlingBurstLimit: 40
+      AccessLogSettings:
+        DestinationArn: !GetAtt SiteApiLogs.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","method":"$context.httpMethod","path":"$context.path","status":"$context.status"}'
+
+  SiteApiLogs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      RetentionInDays: 30
+
+  SiteFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Returns the bundled HTML pages with security headers. No data store, no secrets, no outbound calls.
+    Properties:
+      CodeUri: site/
+      Handler: handler.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      MemorySize: 128
+      Timeout: 5
+      LoggingConfig:
+        LogGroup: !Ref SiteFunctionLogs
+      Events:
+        Root:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiteApi
+            Method: GET
+            Path: /
+        Pages:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SiteApi
+            Method: GET
+            Path: /{proxy+}
+
+  SiteFunctionLogs:
+    Type: AWS::Logs::LogGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      RetentionInDays: 30
+
+Outputs:
+  SiteUrl:
+    Value: !Sub "https://${SiteApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"
+  PrivacyPolicyUrl:
+    Value: !Sub "https://${SiteApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/privacy.html"

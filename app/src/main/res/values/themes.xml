@@ -1,0 +1,5 @@
+<resources>
+    <style name="Theme.LoopAlarm" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/launcher_bg</item>
+    </style>
+</resources>
