@@ -1,5 +1,6 @@
 package com.sudhirshahu.loopalarm.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -55,6 +56,8 @@ data class Alarm(
     val soundTitle: String = "Classic beep",
     val showPostScreen: Boolean = true,
     val snoozeMinutes: Int = 5,
+    /** picture shown when the alarm rings; a file name in [ImageStore], empty for none */
+    @ColumnInfo(defaultValue = "") val imageFile: String = "",
 
     // Runtime state
     val snoozeUntil: Long = 0,

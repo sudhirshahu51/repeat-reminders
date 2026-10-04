@@ -6,7 +6,9 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -58,10 +61,16 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -69,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.IntentCompat
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.EndMode
+import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.ScheduleMode
 import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.ring.BeepSynth
@@ -78,7 +88,10 @@ import com.sudhirshahu.loopalarm.ui.components.IntervalPicker
 import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
 import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
 import com.sudhirshahu.loopalarm.util.Fmt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -118,6 +131,7 @@ fun AlarmEditScreen(
                     placeholder = { Text("Alarm name") }, modifier = Modifier.fillMaxWidth(),
                 )
             }
+            PictureSection(a.imageFile) { a = a.copy(imageFile = it) }
             Section("Repeat interval") {
                 IntervalPicker(a.intervalValue, a.intervalUnit) { v, u -> a = a.copy(intervalValue = v, intervalUnit = u) }
             }
@@ -332,6 +346,48 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 
 /** Material date pickers report UTC midnight. */
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+
+@Composable
+private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var importing by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        importing = true
+        failed = false
+        scope.launch {
+            val name = withContext(Dispatchers.IO) { ImageStore.import(context, uri) }
+            importing = false
+            if (name != null) onChange(name) else failed = true
+        }
+    }
+    val bitmap by produceState<ImageBitmap?>(null, imageFile) {
+        value = withContext(Dispatchers.IO) { ImageStore.load(context, imageFile, 720)?.asImageBitmap() }
+    }
+
+    Section("Picture") {
+        bitmap?.let {
+            Image(
+                it, "Reminder picture", contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp)),
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                enabled = !importing,
+            ) { Text(if (importing) "Adding…" else if (imageFile.isBlank()) "Add picture" else "Change picture") }
+            if (imageFile.isNotBlank()) TextButton(onClick = { onChange("") }) { Text("Remove") }
+        }
+        if (failed) Text("Couldn't open that picture. Try another one.", color = MaterialTheme.colorScheme.error)
+        Text(
+            "Shown in the notification and on the alarm screen when this reminder rings.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
 
 @Composable
 private fun SoundSection(a: Alarm, onChange: (Alarm) -> Unit) {

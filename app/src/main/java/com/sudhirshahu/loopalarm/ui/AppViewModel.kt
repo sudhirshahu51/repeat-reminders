@@ -8,7 +8,9 @@ import com.sudhirshahu.loopalarm.app
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.HistoryEntry
+import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.ring.AlarmService
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -35,12 +37,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         app.appScope.launch { app.scheduler.rescheduleAll() }
     }
 
+    /** Removes pictures no alarm uses any more (replaced, deleted, or picked in an editor that was not saved). */
+    private fun cleanupImages() {
+        app.appScope.launch(Dispatchers.IO) { ImageStore.cleanup(app, alarmDao.getAll().map { it.imageFile }.toSet()) }
+    }
+
     suspend fun load(id: Long): Alarm? = alarmDao.get(id)
 
     fun save(alarm: Alarm, onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
         // Editing clears any pending snooze/skip so the new schedule applies right away.
         val id = alarmDao.upsert(alarm.copy(snoozeUntil = 0, skipUntil = 0))
         reschedule()
+        cleanupImages()
         onSaved(if (alarm.id == 0L) id else alarm.id)
     }
 
@@ -52,6 +60,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun delete(alarm: Alarm) = viewModelScope.launch {
         alarmDao.delete(alarm)
         reschedule()
+        cleanupImages()
     }
 
     fun duplicate(alarm: Alarm) = save(alarm.copy(id = 0, name = alarm.name + " (copy)", createdAt = System.currentTimeMillis()))

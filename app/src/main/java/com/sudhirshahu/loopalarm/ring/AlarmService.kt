@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
@@ -22,6 +23,7 @@ import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
 import com.sudhirshahu.loopalarm.data.HistoryEntry
+import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.Outcome
 import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.ui.RingActivity
@@ -35,9 +37,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** What is ringing right now; observed by [RingActivity]. */
-data class Ringing(val names: String, val firedAt: Long, val snoozeMinutes: Int, val subtitle: String)
+data class Ringing(val names: String, val firedAt: Long, val snoozeMinutes: Int, val subtitle: String, val imageFile: String = "")
 
 object RingingState {
     internal val mutable = MutableStateFlow<Ringing?>(null)
@@ -123,6 +126,11 @@ class AlarmService : Service() {
             return
         }
 
+        // With several alarms ringing together, show the first one that has a picture.
+        // Loaded before the session starts so a Dismiss can't arrive between the session and the sound.
+        val imageFile = alarms.firstOrNull { it.imageFile.isNotBlank() }?.imageFile.orEmpty()
+        val picture = withContext(Dispatchers.IO) { ImageStore.load(this@AlarmService, imageFile) }
+
         val historyIds = alarms.map {
             history.insert(HistoryEntry(alarmId = it.id, alarmName = it.displayName, scheduledAt = scheduledAt, firedAt = now))
         }
@@ -131,10 +139,10 @@ class AlarmService : Service() {
         session = s
 
         val subtitle = "${Fmt.interval(primary)} · ${Fmt.window(primary, use24)}"
-        RingingState.mutable.value = Ringing(names, now, primary.snoozeMinutes, subtitle)
+        RingingState.mutable.value = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile)
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly
-        goForeground(ringingNotification(primary, names, now, use24, showScreen))
+        goForeground(ringingNotification(primary, names, now, use24, showScreen, picture))
         if (showScreen && Settings.canDrawOverlays(this)) {
             // Overlay permission lets us open the screen directly even when the phone is unlocked.
             runCatching { startActivity(Intent(this, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
@@ -213,7 +221,7 @@ class AlarmService : Service() {
         if (nm.isNotificationPolicyAccessGranted) runCatching { nm.setInterruptionFilter(f) }
     }
 
-    private fun ringingNotification(a: Alarm, names: String, firedAt: Long, use24: Boolean, fullScreen: Boolean): android.app.Notification {
+    private fun ringingNotification(a: Alarm, names: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, picture: Bitmap?): android.app.Notification {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val dismiss = PendingIntent.getService(this, 10, Intent(this, AlarmService::class.java).setAction(ACTION_DISMISS), flags)
         val snooze = PendingIntent.getService(this, 11, Intent(this, AlarmService::class.java).setAction(ACTION_SNOOZE), flags)
@@ -231,6 +239,15 @@ class AlarmService : Service() {
             .setShowWhen(true)
             .setContentIntent(if (fullScreen) screen else Notifications.mainActivityIntent(this))
             .apply { if (fullScreen) setFullScreenIntent(screen, true) }
+            .apply {
+                if (picture != null) {
+                    setLargeIcon(picture)
+                    setStyle(
+                        NotificationCompat.BigPictureStyle().bigPicture(picture).bigLargeIcon(null as Bitmap?)
+                            .showBigPictureWhenCollapsed(true),
+                    )
+                }
+            }
             .addAction(0, "Snooze ${a.snoozeMinutes} min", snooze)
             .addAction(0, "Dismiss", dismiss)
             .build()
