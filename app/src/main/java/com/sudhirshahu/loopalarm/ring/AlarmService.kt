@@ -30,6 +30,7 @@ import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.Outcome
 import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.ui.RingActivity
+import com.sudhirshahu.loopalarm.util.AppIcons
 import com.sudhirshahu.loopalarm.util.Fmt
 import com.sudhirshahu.loopalarm.util.ReminderIcons
 import kotlinx.coroutines.CoroutineScope
@@ -271,7 +272,8 @@ class AlarmService : Service() {
                     setStyle(NotificationCompat.BigTextStyle().bigText("${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}\n$notes"))
                 }
             }
-            .apply { if (picture == null && icon.isNotBlank()) setLargeIcon(ReminderIcons.bitmap(icon)) }
+            // Large icon: the reminder picture (set below), else its emoji, else the app icon.
+            .apply { if (picture == null) setLargeIcon(if (icon.isNotBlank()) ReminderIcons.bitmap(icon) else AppIcons.bitmap(this@AlarmService)) }
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)

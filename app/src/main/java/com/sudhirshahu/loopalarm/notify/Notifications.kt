@@ -17,6 +17,7 @@ import com.sudhirshahu.loopalarm.data.Outcome
 import com.sudhirshahu.loopalarm.receiver.NextAlarmActionReceiver
 import com.sudhirshahu.loopalarm.schedule.AlarmScheduler
 import com.sudhirshahu.loopalarm.ui.MainActivity
+import com.sudhirshahu.loopalarm.util.AppIcons
 import com.sudhirshahu.loopalarm.util.Fmt
 
 object Notifications {
@@ -93,6 +94,7 @@ object Notifications {
         )
         val n = NotificationCompat.Builder(context, CHANNEL_NEXT)
             .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setLargeIcon(AppIcons.bitmap(context))
             .setContentTitle("Next: ${next.names.joinToString(", ")}")
             .setContentText(Fmt.dateTime(next.time, use24))
             .setWhen(next.time)
@@ -116,6 +118,7 @@ object Notifications {
     fun showLog(context: Context, alarmId: Long, name: String, firedAt: Long, outcome: Outcome, use24: Boolean) {
         val n = NotificationCompat.Builder(context, CHANNEL_LOG)
             .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setLargeIcon(AppIcons.bitmap(context))
             .setContentTitle(name)
             .setContentText("Rang at ${Fmt.time(firedAt, use24)} · ${outcome.label}")
             .setWhen(firedAt)
