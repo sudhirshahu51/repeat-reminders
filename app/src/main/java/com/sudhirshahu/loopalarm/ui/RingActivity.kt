@@ -130,6 +130,8 @@ private fun RingScreen(r: Ringing, use24: Boolean, onSnooze: () -> Unit, onDismi
                     picture, "Reminder picture", contentScale = ContentScale.Fit,
                     modifier = Modifier.weight(1f, fill = false).padding(vertical = 24.dp).clip(RoundedCornerShape(16.dp)),
                 )
+            } else if (r.icon.isNotBlank()) {
+                Text(r.icon, fontSize = 110.sp, modifier = Modifier.scale(pulse))
             } else {
                 Icon(Icons.Filled.Alarm, null, Modifier.size(120.dp).scale(pulse), tint = MaterialTheme.colorScheme.primary)
             }

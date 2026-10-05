@@ -62,7 +62,7 @@ object Permissions {
         }
         list += PermissionItem(
             "overlay", "Display over other apps",
-            "Opens the post-alarm screen straight away even while you are using another app.",
+            "Shows the pop-up card over other apps, and opens the alarm screen straight away while you use another app.",
             Settings.canDrawOverlays(context), false,
             Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, pkg),
         )

@@ -11,8 +11,8 @@ import java.util.UUID
 import kotlin.math.max
 
 /**
- * Reminder pictures. A picked photo is copied into app storage, upright and downscaled, so it keeps working
- * after the original is moved or deleted and stays small enough for a notification.
+ * Reminder pictures. A picked photo is cropped and copied into app storage, upright and downscaled, so it keeps
+ * working after the original is moved or deleted and stays small enough for a notification.
  * Alarms store only the file name. Call these off the main thread.
  */
 object ImageStore {
@@ -20,22 +20,35 @@ object ImageStore {
 
     private fun dir(context: Context) = File(context.filesDir, "images").apply { mkdirs() }
 
-    /** Copies the image at [uri]; returns the stored file name, or null if it cannot be read. */
-    fun import(context: Context, uri: Uri): String? = runCatching {
+    /** Decodes the image at [uri] upright, no larger than [maxSide]; null if it cannot be read. Used by the crop screen. */
+    fun decodeUpright(context: Context, uri: Uri, maxSide: Int = 2048): Bitmap? = runCatching {
         val cr = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
 
-        val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, MAX_SIDE) }
+        val opts = BitmapFactory.Options().apply { inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, maxSide) }
         var bmp = cr.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) } ?: return null
         val degrees = cr.openInputStream(uri)?.use { exifRotation(ExifInterface(it)) } ?: 0
         if (degrees != 0) bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
+        bmp
+    }.getOrNull()
+
+    /**
+     * Saves the part of [source] inside [crop] (fractions 0..1 of width and height: left, top, right, bottom),
+     * downscaled to fit [MAX_SIDE]. Returns the stored file name, or null on failure.
+     */
+    fun saveCropped(context: Context, source: Bitmap, crop: FloatArray = floatArrayOf(0f, 0f, 1f, 1f)): String? = runCatching {
+        val l = (crop[0] * source.width).toInt().coerceIn(0, source.width - 1)
+        val t = (crop[1] * source.height).toInt().coerceIn(0, source.height - 1)
+        val r = (crop[2] * source.width).toInt().coerceIn(l + 1, source.width)
+        val b = (crop[3] * source.height).toInt().coerceIn(t + 1, source.height)
+        var bmp = Bitmap.createBitmap(source, l, t, r - l, b - t)
         val scale = MAX_SIDE.toFloat() / max(bmp.width, bmp.height)
-        if (scale < 1f) bmp = Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt(), (bmp.height * scale).toInt(), true)
+        if (scale < 1f) bmp = Bitmap.createScaledBitmap(bmp, (bmp.width * scale).toInt().coerceAtLeast(1), (bmp.height * scale).toInt().coerceAtLeast(1), true)
 
         val name = "${UUID.randomUUID()}.jpg"
-        File(dir(context), name).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 85, it) }
+        File(dir(context), name).outputStream().use { bmp.compress(Bitmap.CompressFormat.JPEG, 88, it) }
         name
     }.getOrNull()
 

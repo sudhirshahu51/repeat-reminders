@@ -21,6 +21,13 @@ Everything runs on the phone, so no server or account is needed.
 | - | History of the last 90 days: dismissed, snoozed, timed out, in-call | History tab |
 | - | Quick add in 4 steps: name, interval, start time, days | *Quick add* button |
 | - | Days: every day, days of week, days of month, or picked calendar dates/ranges; filter by months and years | Editor, *Days* |
+| - | Repeat or single: a single alarm rings once at the start time on each chosen day | Editor, *Repeat* |
+| - | Picture per reminder, cropped in the app (free, square or wide), shown in the notification and alarm screen | Editor, *Picture*; `ui/components/CropDialog.kt` |
+| - | Emoji icon per reminder, shown in the list, notification and alarm screen | Editor, *Name* |
+| - | Groups: list sections with one switch for the whole group | Editor, *Name*; Alarms list |
+| - | Pop-up card over other apps while the phone is in use | Settings, *Notifications*; `ring/PopupOverlay.kt` |
+| - | Choice of home-screen icon colour (activity aliases) | Settings, *App icon* |
+| - | Birthday import from phone calendars or .ics / .vcf files (Google Contacts export, other apps), as yearly reminders | Cake button on the Alarms tab |
 
 ### About YouTube Music and other streaming apps
 

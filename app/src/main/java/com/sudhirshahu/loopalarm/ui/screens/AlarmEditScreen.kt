@@ -2,6 +2,7 @@ package com.sudhirshahu.loopalarm.ui.screens
 
 import android.app.Activity
 import android.content.Intent
+import android.graphics.Bitmap
 import android.media.RingtoneManager
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -9,7 +10,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -17,28 +21,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -68,6 +77,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -75,6 +85,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.IntentCompat
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.EndMode
@@ -84,23 +95,27 @@ import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.ring.BeepSynth
 import com.sudhirshahu.loopalarm.ring.SoundPlayer
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
+import com.sudhirshahu.loopalarm.ui.components.CropDialog
 import com.sudhirshahu.loopalarm.ui.components.IntervalPicker
 import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
 import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
 import com.sudhirshahu.loopalarm.util.Fmt
+import com.sudhirshahu.loopalarm.util.ReminderIcons
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmEditScreen(
     initial: Alarm,
     use24: Boolean,
+    /** existing group names, offered as suggestions */
+    groups: List<String>,
     onBack: () -> Unit,
     onSave: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit,
@@ -126,14 +141,23 @@ fun AlarmEditScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Section("Name") {
-                OutlinedTextField(
-                    value = a.name, onValueChange = { a = a.copy(name = it) }, singleLine = true,
-                    placeholder = { Text("Alarm name") }, modifier = Modifier.fillMaxWidth(),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    IconPickerButton(a.icon) { a = a.copy(icon = it) }
+                    OutlinedTextField(
+                        value = a.name, onValueChange = { a = a.copy(name = it) }, singleLine = true,
+                        placeholder = { Text("Alarm name") }, modifier = Modifier.weight(1f),
+                    )
+                }
+                GroupField(a.groupName, groups) { a = a.copy(groupName = it) }
             }
             PictureSection(a.imageFile) { a = a.copy(imageFile = it) }
-            Section("Repeat interval") {
-                IntervalPicker(a.intervalValue, a.intervalUnit) { v, u -> a = a.copy(intervalValue = v, intervalUnit = u) }
+            Section("Repeat") {
+                SwitchRow(
+                    "Repeat",
+                    if (a.repeating) "Rings again every interval until the window ends" else "Single alarm: rings once at the start time",
+                    a.repeating,
+                ) { a = a.copy(repeating = it) }
+                if (a.repeating) IntervalPicker(a.intervalValue, a.intervalUnit) { v, u -> a = a.copy(intervalValue = v, intervalUnit = u) }
             }
             TimeWindowSection(a, use24) { a = it }
             ScheduleSection(a) { a = it }
@@ -156,12 +180,76 @@ fun AlarmEditScreen(
 }
 
 private fun validate(a: Alarm): String? = when {
-    a.intervalSeconds < 10 -> "Interval must be at least 10 seconds."
+    a.repeating && a.intervalSeconds < 10 -> "Interval must be at least 10 seconds."
     a.scheduleMode == ScheduleMode.WEEK_DAYS && a.daysOfWeek == 0 -> "Pick at least one day of the week."
     a.scheduleMode == ScheduleMode.MONTH_DAYS && a.daysOfMonth == 0 -> "Pick at least one day of the month."
     a.scheduleMode == ScheduleMode.DATES && a.dateSet.isEmpty() -> "Add at least one date."
-    a.endMode == EndMode.AFTER_COUNT && a.repeatCount < 1 -> "Ring count must be at least 1."
+    a.repeating && a.endMode == EndMode.AFTER_COUNT && a.repeatCount < 1 -> "Ring count must be at least 1."
     else -> null
+}
+
+/** Round button showing the reminder's emoji; opens a picker of common icons plus any emoji you type. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun IconPickerButton(icon: String, onChange: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    FilledTonalIconButton(onClick = { open = true }, modifier = Modifier.size(56.dp)) {
+        if (icon.isBlank()) Icon(Icons.Filled.Alarm, "Choose icon") else Text(icon, fontSize = 26.sp)
+    }
+    if (!open) return
+    var custom by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { open = false },
+        title = { Text("Reminder icon") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ReminderIcons.presets.forEach { e ->
+                        val selected = e == icon
+                        Box(
+                            Modifier.size(44.dp).clip(CircleShape)
+                                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                .clickable { onChange(e); open = false },
+                            contentAlignment = Alignment.Center,
+                        ) { Text(e, fontSize = 24.sp) }
+                    }
+                }
+                OutlinedTextField(
+                    value = custom,
+                    onValueChange = { custom = ReminderIcons.firstSymbol(it) },
+                    label = { Text("Or type any emoji") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onChange(custom); open = false }, enabled = custom.isNotBlank()) { Text("Use") }
+        },
+        dismissButton = {
+            TextButton(onClick = { onChange(""); open = false }) { Text("Default") }
+        },
+    )
+}
+
+/** Free-text group name with the existing groups as one-tap chips. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun GroupField(group: String, groups: List<String>, onChange: (String) -> Unit) {
+    OutlinedTextField(
+        value = group,
+        onValueChange = { onChange(it.take(40)) },
+        label = { Text("Group (optional)") },
+        placeholder = { Text("e.g. Health, Work, Birthdays") },
+        singleLine = true,
+        modifier = Modifier.fillMaxWidth(),
+    )
+    val others = groups.filter { it != group }
+    if (others.isNotEmpty()) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            others.forEach { g -> AssistChip(onClick = { onChange(g) }, label = { Text(g) }) }
+        }
+    }
 }
 
 @Composable
@@ -206,32 +294,37 @@ private fun TimeWindowSection(a: Alarm, use24: Boolean, onChange: (Alarm) -> Uni
         OutlinedButton(onClick = { pickStart = true }) {
             Text(Fmt.minuteOfDay(a.startMinute, use24), style = MaterialTheme.typography.headlineSmall)
         }
-        Text("Stop repeating", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-        RadioRow("At midnight", a.endMode == EndMode.END_OF_DAY, { onChange(a.copy(endMode = EndMode.END_OF_DAY)) })
-        RadioRow("At a set time", a.endMode == EndMode.AT_TIME, { onChange(a.copy(endMode = EndMode.AT_TIME)) }) {
-            if (a.endMode == EndMode.AT_TIME) TextButton(onClick = { pickEnd = true }) { Text(Fmt.minuteOfDay(a.endMinute, use24)) }
-        }
-        if (a.endMode == EndMode.AT_TIME && a.endMinute < a.startMinute) {
-            Text("Ends after midnight, on the next day.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        RadioRow("After a number of rings", a.endMode == EndMode.AFTER_COUNT, { onChange(a.copy(endMode = EndMode.AFTER_COUNT)) }) {
-            if (a.endMode == EndMode.AFTER_COUNT) {
-                var text by remember(a.repeatCount) { mutableStateOf(a.repeatCount.toString()) }
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { t ->
-                        text = t.filter(Char::isDigit).take(4)
-                        onChange(a.copy(repeatCount = text.toIntOrNull() ?: 0))
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.width(88.dp),
-                )
-            }
-        }
+        if (a.repeating) StopRepeatingOptions(a, use24, onChange) { pickEnd = true }
     }
     if (pickStart) TimePickerDialog("Start time", a.startMinute, use24, { pickStart = false }) { onChange(a.copy(startMinute = it)); pickStart = false }
     if (pickEnd) TimePickerDialog("End time", a.endMinute, use24, { pickEnd = false }) { onChange(a.copy(endMinute = it)); pickEnd = false }
+}
+
+@Composable
+private fun StopRepeatingOptions(a: Alarm, use24: Boolean, onChange: (Alarm) -> Unit, onPickEnd: () -> Unit) {
+    Text("Stop repeating", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+    RadioRow("At midnight", a.endMode == EndMode.END_OF_DAY, { onChange(a.copy(endMode = EndMode.END_OF_DAY)) })
+    RadioRow("At a set time", a.endMode == EndMode.AT_TIME, { onChange(a.copy(endMode = EndMode.AT_TIME)) }) {
+        if (a.endMode == EndMode.AT_TIME) TextButton(onClick = onPickEnd) { Text(Fmt.minuteOfDay(a.endMinute, use24)) }
+    }
+    if (a.endMode == EndMode.AT_TIME && a.endMinute < a.startMinute) {
+        Text("Ends after midnight, on the next day.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+    RadioRow("After a number of rings", a.endMode == EndMode.AFTER_COUNT, { onChange(a.copy(endMode = EndMode.AFTER_COUNT)) }) {
+        if (a.endMode == EndMode.AFTER_COUNT) {
+            var text by remember(a.repeatCount) { mutableStateOf(a.repeatCount.toString()) }
+            OutlinedTextField(
+                value = text,
+                onValueChange = { t ->
+                    text = t.filter(Char::isDigit).take(4)
+                    onChange(a.copy(repeatCount = text.toIntOrNull() ?: 0))
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.width(88.dp),
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -348,20 +441,25 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var importing by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        importing = true
+    // Picture waiting in the crop screen: a newly picked photo, or the current one when re-cropping.
+    var cropSource by remember { mutableStateOf<Bitmap?>(null) }
+    fun openCrop(load: () -> Bitmap?) {
+        busy = true
         failed = false
         scope.launch {
-            val name = withContext(Dispatchers.IO) { ImageStore.import(context, uri) }
-            importing = false
-            if (name != null) onChange(name) else failed = true
+            val bmp = withContext(Dispatchers.IO) { load() }
+            busy = false
+            if (bmp != null) cropSource = bmp else failed = true
         }
+    }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) openCrop { ImageStore.decodeUpright(context, uri) }
     }
     val bitmap by produceState<ImageBitmap?>(null, imageFile) {
         value = withContext(Dispatchers.IO) { ImageStore.load(context, imageFile, 720)?.asImageBitmap() }
@@ -370,21 +468,40 @@ private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
     Section("Picture") {
         bitmap?.let {
             Image(
-                it, "Reminder picture", contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(12.dp)),
+                it, "Reminder picture", contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).clip(RoundedCornerShape(12.dp)),
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
                 onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                enabled = !importing,
-            ) { Text(if (importing) "Adding…" else if (imageFile.isBlank()) "Add picture" else "Change picture") }
-            if (imageFile.isNotBlank()) TextButton(onClick = { onChange("") }) { Text("Remove") }
+                enabled = !busy,
+            ) { Text(if (busy) "Opening…" else if (imageFile.isBlank()) "Add picture" else "Change picture") }
+            if (imageFile.isNotBlank()) {
+                OutlinedButton(onClick = { openCrop { ImageStore.load(context, imageFile) } }, enabled = !busy) { Text("Crop") }
+                TextButton(onClick = { onChange("") }) { Text("Remove") }
+            }
         }
         if (failed) Text("Couldn't open that picture. Try another one.", color = MaterialTheme.colorScheme.error)
         Text(
-            "Shown in the notification and on the alarm screen when this reminder rings.",
+            "Shown in the notification and on the alarm screen when this reminder rings. Wide pictures fit notifications best.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    cropSource?.let { src ->
+        CropDialog(
+            src,
+            onCancel = { cropSource = null },
+            onDone = { rect ->
+                cropSource = null
+                busy = true
+                scope.launch {
+                    val name = withContext(Dispatchers.IO) { ImageStore.saveCropped(context, src, rect) }
+                    busy = false
+                    if (name != null) onChange(name) else failed = true
+                }
+            },
         )
     }
 }

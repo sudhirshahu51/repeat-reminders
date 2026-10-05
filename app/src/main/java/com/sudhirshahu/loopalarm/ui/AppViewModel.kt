@@ -10,9 +10,11 @@ import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.ring.AlarmService
+import com.sudhirshahu.loopalarm.util.AppIcons
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -22,6 +24,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val historyDao = app.db.historyDao()
 
     val alarms: StateFlow<List<Alarm>> = alarmDao.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val groups: StateFlow<List<String>> = alarmDao.observeAll()
+        .map { list -> list.map { it.groupName.trim() }.filter { it.isNotEmpty() }.distinct().sortedWith(String.CASE_INSENSITIVE_ORDER) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val history: StateFlow<List<HistoryEntry>> = historyDao.observeRecent()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -46,7 +51,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun save(alarm: Alarm, onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
         // Editing clears any pending snooze/skip so the new schedule applies right away.
-        val id = alarmDao.upsert(alarm.copy(snoozeUntil = 0, skipUntil = 0))
+        val id = alarmDao.upsert(alarm.copy(groupName = alarm.groupName.trim(), snoozeUntil = 0, skipUntil = 0))
         reschedule()
         cleanupImages()
         onSaved(if (alarm.id == 0L) id else alarm.id)
@@ -55,6 +60,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setEnabled(alarm: Alarm, enabled: Boolean) = viewModelScope.launch {
         alarmDao.setEnabled(alarm.id, enabled)
         reschedule()
+    }
+
+    fun setGroupEnabled(group: String, enabled: Boolean) = viewModelScope.launch {
+        alarmDao.setGroupEnabled(group, enabled)
+        reschedule()
+    }
+
+    /** Adds many reminders at once (birthday import). */
+    fun addAll(list: List<Alarm>, onDone: () -> Unit = {}) = viewModelScope.launch {
+        list.forEach { alarmDao.upsert(it) }
+        reschedule()
+        onDone()
     }
 
     fun delete(alarm: Alarm) = viewModelScope.launch {
@@ -73,7 +90,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearHistory() = viewModelScope.launch { historyDao.clear() }
 
     fun updateSettings(transform: (AppSettings) -> AppSettings) = viewModelScope.launch {
+        val before = app.settings.current().appIcon
         app.settings.update(transform)
+        val after = app.settings.current().appIcon
+        if (after != before) AppIcons.apply(app, after)
         reschedule() // refresh the next-alarm notification
     }
 }

@@ -21,6 +21,13 @@ data class Alarm(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String = "",
     val enabled: Boolean = true,
+    /** emoji shown next to the name; empty means the default alarm icon */
+    @ColumnInfo(defaultValue = "") val icon: String = "",
+    /** reminders with the same group name are listed together; empty means ungrouped */
+    @ColumnInfo(defaultValue = "") val groupName: String = "",
+
+    /** false = rings once at the start time on each matching day, ignoring the interval and window end */
+    @ColumnInfo(defaultValue = "1") val repeating: Boolean = true,
 
     // Repeat interval
     val intervalValue: Int = 30,

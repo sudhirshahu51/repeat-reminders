@@ -1,5 +1,6 @@
 package com.sudhirshahu.loopalarm.ring
 
+import android.app.KeyguardManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
@@ -11,10 +12,12 @@ import android.media.AudioAttributes
 import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.sudhirshahu.loopalarm.R
@@ -28,6 +31,7 @@ import com.sudhirshahu.loopalarm.data.Outcome
 import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.ui.RingActivity
 import com.sudhirshahu.loopalarm.util.Fmt
+import com.sudhirshahu.loopalarm.util.ReminderIcons
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,7 +44,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** What is ringing right now; observed by [RingActivity]. */
-data class Ringing(val names: String, val firedAt: Long, val snoozeMinutes: Int, val subtitle: String, val imageFile: String = "")
+data class Ringing(
+    val names: String,
+    val firedAt: Long,
+    val snoozeMinutes: Int,
+    val subtitle: String,
+    val imageFile: String = "",
+    val icon: String = "",
+)
 
 object RingingState {
     internal val mutable = MutableStateFlow<Ringing?>(null)
@@ -56,6 +67,7 @@ class AlarmService : Service() {
     private var timeoutJob: Job? = null
     private var session: Session? = null
     private var restoreFilter: Int? = null
+    private val popup by lazy { PopupOverlay(this) }
 
     private class Session(
         val alarms: List<Alarm>,
@@ -138,14 +150,25 @@ class AlarmService : Service() {
         val s = Session(alarms, historyIds, now, behavior == CallBehavior.VIBRATE, settings)
         session = s
 
-        val subtitle = "${Fmt.interval(primary)} · ${Fmt.window(primary, use24)}"
-        RingingState.mutable.value = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile)
+        val subtitle = Fmt.summary(primary, use24)
+        val icon = primary.icon.ifBlank { alarms.firstOrNull { it.icon.isNotBlank() }?.icon.orEmpty() }
+        val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon)
+        RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly
-        goForeground(ringingNotification(primary, names, now, use24, showScreen, picture))
-        if (showScreen && Settings.canDrawOverlays(this)) {
+        // While the phone is in use, a compact card over the current app replaces the full alarm screen.
+        val usePopup = showScreen && settings.popupOverApps && isPhoneInUse() && popup.canShow()
+        goForeground(ringingNotification(primary, names, icon, now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
+        if (usePopup) {
+            popup.show(
+                ringing, picture?.asImageBitmap(), settings, Fmt.time(now, use24),
+                onOpen = { popup.hide(); openRingScreen() },
+                onSnooze = { scope.launch { finish(Outcome.SNOOZED) } },
+                onDismiss = { scope.launch { finish(Outcome.DISMISSED) } },
+            )
+        } else if (showScreen && Settings.canDrawOverlays(this)) {
             // Overlay permission lets us open the screen directly even when the phone is unlocked.
-            runCatching { startActivity(Intent(this, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            openRingScreen()
         }
 
         if (!s.vibrateOnly) {
@@ -191,6 +214,14 @@ class AlarmService : Service() {
         vibrator = v
     }
 
+    private fun openRingScreen() {
+        runCatching { startActivity(Intent(this, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+    }
+
+    /** Screen on and unlocked: someone is using the phone right now. */
+    private fun isPhoneInUse(): Boolean =
+        getSystemService(PowerManager::class.java).isInteractive && !getSystemService(KeyguardManager::class.java).isKeyguardLocked
+
     private fun isInCall(): Boolean {
         val mode = getSystemService(AudioManager::class.java).mode
         return mode == AudioManager.MODE_IN_CALL || mode == AudioManager.MODE_IN_COMMUNICATION
@@ -221,15 +252,19 @@ class AlarmService : Service() {
         if (nm.isNotificationPolicyAccessGranted) runCatching { nm.setInterruptionFilter(f) }
     }
 
-    private fun ringingNotification(a: Alarm, names: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, picture: Bitmap?): android.app.Notification {
+    /** [quiet] posts on a low-importance channel so no heads-up appears on top of the pop-up card. */
+    private fun ringingNotification(
+        a: Alarm, names: String, icon: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, quiet: Boolean, picture: Bitmap?,
+    ): android.app.Notification {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val dismiss = PendingIntent.getService(this, 10, Intent(this, AlarmService::class.java).setAction(ACTION_DISMISS), flags)
         val snooze = PendingIntent.getService(this, 11, Intent(this, AlarmService::class.java).setAction(ACTION_SNOOZE), flags)
         val screen = PendingIntent.getActivity(this, 12, Intent(this, RingActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), flags)
-        return NotificationCompat.Builder(this, Notifications.CHANNEL_RINGING)
+        return NotificationCompat.Builder(this, if (quiet) Notifications.CHANNEL_RINGING_QUIET else Notifications.CHANNEL_RINGING)
             .setSmallIcon(R.drawable.ic_stat_alarm)
-            .setContentTitle(names)
+            .setContentTitle(if (icon.isBlank()) names else "$icon $names")
             .setContentText("${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}")
+            .apply { if (picture == null && icon.isNotBlank()) setLargeIcon(ReminderIcons.bitmap(icon)) }
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -242,10 +277,10 @@ class AlarmService : Service() {
             .apply {
                 if (picture != null) {
                     setLargeIcon(picture)
-                    setStyle(
-                        NotificationCompat.BigPictureStyle().bigPicture(picture).bigLargeIcon(null as Bitmap?)
-                            .showBigPictureWhenCollapsed(true),
-                    )
+                    val style = NotificationCompat.BigPictureStyle().bigPicture(picture).bigLargeIcon(null as Bitmap?)
+                    // Android 12+ can show the picture even while the notification is collapsed.
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) style.showBigPictureWhenCollapsed(true)
+                    setStyle(style)
                 }
             }
             .addAction(0, "Snooze ${a.snoozeMinutes} min", snooze)
@@ -271,6 +306,7 @@ class AlarmService : Service() {
         vibrator?.cancel()
         vibrator = null
         restoreDnd()
+        popup.hide()
 
         val app = app
         val now = System.currentTimeMillis()
@@ -296,6 +332,7 @@ class AlarmService : Service() {
         player.stop()
         vibrator?.cancel()
         restoreDnd()
+        popup.hide()
         RingingState.mutable.value = null
         scope.cancel()
         super.onDestroy()

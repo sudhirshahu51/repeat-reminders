@@ -4,11 +4,11 @@ import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.EndMode
 import com.sudhirshahu.loopalarm.data.IntervalUnit
 import com.sudhirshahu.loopalarm.data.ScheduleMode
+import java.time.LocalDateTime
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.time.LocalDateTime
-import java.time.ZoneId
 
 class ScheduleCalculatorTest {
     private val zone = ZoneId.of("Asia/Kolkata")
@@ -81,5 +81,26 @@ class ScheduleCalculatorTest {
     @Test fun secondsInterval() {
         val a = base.copy(intervalValue = 45, intervalUnit = IntervalUnit.SECONDS)
         assertEquals("2026-09-30T09:01:30", next(a, "2026-09-30T09:01:00"))
+    }
+
+    @Test fun singleAlarmRingsOnlyAtStart() {
+        val a = base.copy(repeating = false)
+        assertEquals("2026-09-30T09:00", next(a, "2026-09-30T08:00"))
+        assertEquals("2026-10-01T09:00", next(a, "2026-09-30T09:00"))
+        assertEquals("2026-10-01T09:00", next(a, "2026-09-30T09:20"))
+    }
+
+    @Test fun singleAlarmIgnoresOvernightWindow() {
+        val a = base.copy(repeating = false, startMinute = 22 * 60, endMode = EndMode.AT_TIME, endMinute = 2 * 60)
+        assertEquals("2026-10-01T22:00", next(a, "2026-10-01T00:30"))
+    }
+
+    @Test fun yearlyBirthday() {
+        val a = base.copy(
+            repeating = false, scheduleMode = ScheduleMode.MONTH_DAYS,
+            daysOfMonth = 1 shl (14 - 1), months = 1 shl (3 - 1),
+        )
+        assertEquals("2027-03-14T09:00", next(a, "2026-10-01T10:00"))
+        assertEquals("2028-03-14T09:00", next(a, "2027-03-14T09:00"))
     }
 }

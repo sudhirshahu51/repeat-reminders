@@ -62,7 +62,12 @@ object Fmt {
         }
     }
 
+    /** One line describing when a day's rings happen, e.g. "Every 30 min · from 9:00 until midnight" or "Once at 9:00". */
+    fun summary(a: Alarm, use24: Boolean): String =
+        if (a.repeating) "${interval(a)} · ${window(a, use24)}" else "Once at ${minuteOfDay(a.startMinute, use24)}"
+
     fun interval(a: Alarm): String {
+        if (!a.repeating) return "Once"
         val unit = when (a.intervalUnit) {
             com.sudhirshahu.loopalarm.data.IntervalUnit.SECONDS -> "sec"
             com.sudhirshahu.loopalarm.data.IntervalUnit.MINUTES -> "min"

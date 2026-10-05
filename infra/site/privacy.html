@@ -26,6 +26,12 @@
 <h2>Audio files</h2>
 <p>If you choose a song or audio file as an alarm sound, the app gets permission to read that one file so it can play it. The app does not scan, upload or copy your files.</p>
 
+<h2>Pictures</h2>
+<p>If you add a picture to a reminder, you pick it with Android's photo picker. The app saves a resized copy of only that picture inside its own storage so it can show it when the reminder rings. The copy is deleted when you remove the picture or delete the reminder.</p>
+
+<h2>Birthday import</h2>
+<p>If you choose to import birthdays, the app reads them on your phone from the calendars synced to it, or from a calendar (.ics) or contacts (.vcf) file you pick or share to the app. Only the names and dates of the birthdays you tick are saved, as reminders. Nothing is uploaded, and the app does not change your calendars or contacts.</p>
+
 <h2>Permissions and why they are used</h2>
 <table>
 <tr><th>Permission</th><th>Why</th></tr>
@@ -33,11 +39,12 @@
 <tr><td>Alarms and reminders (exact alarms)</td><td>To ring at the exact time you set</td></tr>
 <tr><td>Run at startup</td><td>To set your alarms again after the phone restarts</td></tr>
 <tr><td>Foreground service, wake lock, vibration</td><td>To keep playing the alarm sound and vibration while it rings</td></tr>
-<tr><td>Full-screen notifications, display over other apps</td><td>To show the optional alarm screen, including on the lock screen</td></tr>
+<tr><td>Full-screen notifications, display over other apps</td><td>To show the optional alarm screen, including on the lock screen, and the pop-up card over other apps</td></tr>
+<tr><td>Calendar, read only (optional)</td><td>Only if you import birthdays from your calendars, to find birthday events</td></tr>
 <tr><td>Do Not Disturb access (optional)</td><td>Only if you turn on "Ring through Do Not Disturb", to let the alarm be heard and then restore your setting</td></tr>
 <tr><td>Ignore battery optimisation (optional)</td><td>So the system does not delay or stop your alarms</td></tr>
 </table>
-<p>The app does not use the internet, your location, contacts, camera, microphone or phone number. To tell whether you are in a call, it checks only whether the phone's audio is in call mode. It does not read call details.</p>
+<p>The app does not use the internet, your location, contacts, camera, microphone or phone number, and it never reads your calendars unless you start a birthday import. To tell whether you are in a call, it checks only whether the phone's audio is in call mode. It does not read call details.</p>
 
 <h2>Children</h2>
 <p>The app is not directed at children under 13 and collects no information from anyone.</p>

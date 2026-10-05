@@ -17,9 +17,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -32,11 +34,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.sudhirshahu.loopalarm.BuildConfig
 import com.sudhirshahu.loopalarm.data.Accent
+import com.sudhirshahu.loopalarm.data.AppIcon
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
 import com.sudhirshahu.loopalarm.data.ThemeMode
@@ -106,6 +110,35 @@ fun SettingsScreen(
                 settings.showNextAlarmNotification) { v -> onChange { it.copy(showNextAlarmNotification = v) } }
             Toggle("Keep a note after each alarm", "Silent notification saying when the alarm rang and how it ended",
                 settings.keepNotificationAfterAlarm) { v -> onChange { it.copy(keepNotificationAfterAlarm = v) } }
+            Toggle(
+                "Pop-up over other apps",
+                "While you're using the phone, show a small card with Snooze and Dismiss on top of any app instead of " +
+                    "the full alarm screen. Needs 'Display over other apps' (Permissions).",
+                settings.popupOverApps,
+            ) { v -> onChange { it.copy(popupOverApps = v) } }
+        }
+
+        Group("App icon") {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppIcon.entries.forEach { icon ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(icon.argb))
+                                .border(if (settings.appIcon == icon) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(14.dp))
+                                .clickable { onChange { it.copy(appIcon = icon) } },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(if (settings.appIcon == icon) Icons.Filled.Check else Icons.Filled.Alarm, null, tint = Color.White)
+                        }
+                        Text(icon.label, style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            Text(
+                "Your home screen may take a few seconds to update. If the icon disappears from the home screen, " +
+                    "add it again from the app drawer.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Group("During a phone call") {

@@ -21,6 +21,7 @@ import com.sudhirshahu.loopalarm.util.Fmt
 
 object Notifications {
     const val CHANNEL_RINGING = "ringing"
+    const val CHANNEL_RINGING_QUIET = "ringing_quiet"
     const val CHANNEL_NEXT = "next_alarm"
     const val CHANNEL_LOG = "alarm_log"
 
@@ -36,6 +37,14 @@ object Notifications {
                 setSound(null, null)
                 enableVibration(false)
                 setBypassDnd(true)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            },
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL_RINGING_QUIET, "Ringing alarms (pop-up shown)", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Used while the pop-up card is on screen, so the notification doesn't cover it."
+                setSound(null, null)
+                enableVibration(false)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             },
         )

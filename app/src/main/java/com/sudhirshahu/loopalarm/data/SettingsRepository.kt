@@ -32,6 +32,15 @@ enum class CallBehavior(val label: String) {
     SKIP("Skip silently (log only)"),
 }
 
+/** Home-screen icon choices. Each is an activity-alias in the manifest; [alias] is its class name suffix. */
+enum class AppIcon(val label: String, val alias: String, val argb: Long) {
+    DEFAULT("Indigo", "LauncherDefault", 0xFF3F51B5),
+    TEAL("Teal", "LauncherTeal", 0xFF00897B),
+    ORANGE("Orange", "LauncherOrange", 0xFFF57C00),
+    PINK("Pink", "LauncherPink", 0xFFD81B60),
+    DARK("Dark", "LauncherDark", 0xFF212121),
+}
+
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accent: Accent = Accent.DYNAMIC,
@@ -40,6 +49,9 @@ data class AppSettings(
     val keepNotificationAfterAlarm: Boolean = true,
     val callBehavior: CallBehavior = CallBehavior.VIBRATE,
     val overrideDnd: Boolean = false,
+    /** While the phone is in use, show a compact card on top of other apps instead of the full alarm screen. */
+    val popupOverApps: Boolean = true,
+    val appIcon: AppIcon = AppIcon.DEFAULT,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -53,6 +65,8 @@ class SettingsRepository(private val context: Context) {
         val keepNotif = booleanPreferencesKey("keep_notification")
         val callBehavior = stringPreferencesKey("call_behavior")
         val overrideDnd = booleanPreferencesKey("override_dnd")
+        val popup = booleanPreferencesKey("popup_over_apps")
+        val appIcon = stringPreferencesKey("app_icon")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { it.toSettings() }
@@ -69,6 +83,8 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.keepNotif] = s.keepNotificationAfterAlarm
             prefs[Keys.callBehavior] = s.callBehavior.name
             prefs[Keys.overrideDnd] = s.overrideDnd
+            prefs[Keys.popup] = s.popupOverApps
+            prefs[Keys.appIcon] = s.appIcon.name
         }
     }
 
@@ -82,6 +98,8 @@ class SettingsRepository(private val context: Context) {
             keepNotificationAfterAlarm = this[Keys.keepNotif] ?: d.keepNotificationAfterAlarm,
             callBehavior = enumOr(this[Keys.callBehavior], d.callBehavior),
             overrideDnd = this[Keys.overrideDnd] ?: d.overrideDnd,
+            popupOverApps = this[Keys.popup] ?: d.popupOverApps,
+            appIcon = enumOr(this[Keys.appIcon], d.appIcon),
         )
     }
 

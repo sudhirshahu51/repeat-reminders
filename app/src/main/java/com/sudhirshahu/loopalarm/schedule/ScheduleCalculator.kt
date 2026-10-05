@@ -13,6 +13,7 @@ import java.time.ZoneId
  *
  * On every matching date the alarm rings at the start time and then every interval until the
  * window ends (end of day, a fixed end time which may be after midnight, or after N rings).
+ * A single (non-repeating) alarm rings only at the start time.
  */
 object ScheduleCalculator {
     /** How far ahead we search. Covers year filters and specific dates up to five years out. */
@@ -43,7 +44,7 @@ object ScheduleCalculator {
 
     /** Inclusive end of the ringing window that starts on [date]. */
     private fun windowEnd(a: Alarm, date: LocalDate, start: Long, intervalMs: Long, zone: ZoneId): Long =
-        when (a.endMode) {
+        if (!a.repeating) start else when (a.endMode) {
             EndMode.END_OF_DAY -> date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
             EndMode.AT_TIME -> {
                 val endDate = if (a.endMinute >= a.startMinute) date else date.plusDays(1)
@@ -58,8 +59,9 @@ object ScheduleCalculator {
         val intervalMs = a.intervalSeconds * 1000
         val matches = matcher(a)
         // Windows that started on earlier days can still be running (overnight or long count windows).
-        val lookBack = when (a.endMode) {
-            EndMode.AFTER_COUNT -> ((a.repeatCount.coerceIn(1, 1000) * intervalMs) / DAY_MS + 1).coerceAtMost(31)
+        val lookBack = when {
+            !a.repeating -> 0
+            a.endMode == EndMode.AFTER_COUNT -> ((a.repeatCount.coerceIn(1, 1000) * intervalMs) / DAY_MS + 1).coerceAtMost(31)
             else -> 1
         }
         var date = Instant.ofEpochMilli(after).atZone(zone).toLocalDate().minusDays(lookBack)

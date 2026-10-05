@@ -1,3 +1,7 @@
 <resources>
     <color name="launcher_bg">#FF3F51B5</color>
+    <color name="launcher_bg_teal">#FF00897B</color>
+    <color name="launcher_bg_orange">#FFF57C00</color>
+    <color name="launcher_bg_pink">#FFD81B60</color>
+    <color name="launcher_bg_dark">#FF212121</color>
 </resources>

@@ -104,6 +104,8 @@ In Play Console, open **Home**, then **Create app**:
 
 The app has no INTERNET permission, so nothing can leave the device. Android backup to the user's own Google account does not count as collection under Play's rules.
 
+The optional calendar permission (birthday import) and reminder pictures are read and stored on the device only. Under Play's rules, data processed only on the device is not "collected", so the answer stays **No**.
+
 ### Permission declarations
 
 Play Console asks about these after you upload the bundle.
