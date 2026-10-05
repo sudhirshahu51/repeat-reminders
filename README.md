@@ -12,7 +12,7 @@ Everything runs on the phone, so no server or account is needed.
 | 2 | Post-alarm screen can be turned on or off per alarm (off = notification only) | Editor, *Ringing* |
 | 3 | Every ring posts a notification with Snooze and Dismiss, plus an optional note afterwards | `ring/AlarmService.kt`, Settings |
 | 4 | Any interval: number + seconds/minutes/hours, with presets. Ends at midnight, at a set time (can cross midnight), or after N rings | Editor, *Repeat interval* / *Start time* |
-| 5 | Themes: System, Light, Dark, AMOLED black, plus 7 accent colours or wallpaper colours (Android 12+) | Settings |
+| 5 | Themes: System, Light, Dark, AMOLED black, plus 8 accent colours (including White) or wallpaper colours (Android 12+) | Settings |
 | 6 | 12-hour, 24-hour or follow system | Settings |
 | 7 | Gradual volume increase, with ramp time from 3 to 120 s | Editor, *Ringing* |
 | 8 | 6 built-in beeps (synthesised, no audio files), phone ringtones, or any audio file on the device | Editor, *Sound* |
@@ -26,7 +26,7 @@ Everything runs on the phone, so no server or account is needed.
 | - | Emoji icon per reminder, shown in the list, notification and alarm screen | Editor, *Name* |
 | - | Groups: list sections with one switch for the whole group | Editor, *Name*; Alarms list |
 | - | Pop-up card over other apps while the phone is in use | Settings, *Notifications*; `ring/PopupOverlay.kt` |
-| - | Choice of home-screen icon colour (activity aliases) | Settings, *App icon* |
+| - | Home-screen icon: black or coloured background, notebook page in the accent colour (activity aliases) | Settings, *App icon* |
 | - | Birthday import from phone calendars or .ics / .vcf files (Google Contacts export, other apps), as yearly reminders | Cake button on the Alarms tab |
 
 ### About YouTube Music and other streaming apps

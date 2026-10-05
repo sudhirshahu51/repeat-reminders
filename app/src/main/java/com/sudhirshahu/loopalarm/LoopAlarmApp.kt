@@ -24,9 +24,9 @@ class LoopAlarmApp : Application() {
         super.onCreate()
         Notifications.createChannels(this)
         appScope.launch { scheduler.rescheduleAll() }
-        // Re-apply the chosen launcher icon. An update can remove an icon alias (1.3.0 dropped "Orange");
+        // Re-apply the chosen launcher icon. An update can remove an icon alias (1.3.0 dropped "Orange", 1.3.1 "Dark");
         // this runs after the update (MY_PACKAGE_REPLACED starts the app) so the app never loses its launcher entry.
-        appScope.launch { AppIcons.apply(this@LoopAlarmApp, settings.current().appIcon) }
+        appScope.launch { settings.current().let { AppIcons.apply(this@LoopAlarmApp, it.appIcon, it.accent) } }
     }
 }
 

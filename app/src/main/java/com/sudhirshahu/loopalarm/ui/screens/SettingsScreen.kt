@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -45,6 +44,7 @@ import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
 import com.sudhirshahu.loopalarm.data.ThemeMode
 import com.sudhirshahu.loopalarm.data.TimeFormat
+import com.sudhirshahu.loopalarm.data.notebook
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -85,11 +85,18 @@ fun SettingsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             Modifier.size(40.dp).background(Color(acc.argb), CircleShape)
-                                .border(if (settings.accent == acc) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                                .border(
+                                    when {
+                                        settings.accent == acc -> 3.dp
+                                        acc == Accent.WHITE -> 1.dp // keeps the white swatch visible on a light screen
+                                        else -> 0.dp
+                                    },
+                                    MaterialTheme.colorScheme.onSurface, CircleShape,
+                                )
                                 .clickable { onChange { it.copy(accent = acc) } },
                             contentAlignment = Alignment.Center,
                         ) {
-                            if (settings.accent == acc) Icon(Icons.Filled.Check, null, tint = Color.White)
+                            if (settings.accent == acc) Icon(Icons.Filled.Check, null, tint = if (acc == Accent.WHITE) Color.Black else Color.White)
                         }
                         Text(acc.label, style = MaterialTheme.typography.labelSmall)
                     }
@@ -128,7 +135,10 @@ fun SettingsScreen(
                                 .clickable { onChange { it.copy(appIcon = icon) } },
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(if (settings.appIcon == icon) Icons.Filled.Check else Icons.Filled.Alarm, null, tint = Color.White)
+                            // The notebook page in the middle follows the accent colour.
+                            val page = if (settings.accent.notebook.isEmpty()) Color.White else Color(settings.accent.argb)
+                            Box(Modifier.size(22.dp, 26.dp).background(page, RoundedCornerShape(4.dp)).border(1.dp, Color.White, RoundedCornerShape(4.dp)))
+                            if (settings.appIcon == icon) Icon(Icons.Filled.Check, null, tint = if (page == Color.White) Color.Black else Color.White)
                         }
                         Text(icon.label, style = MaterialTheme.typography.labelSmall)
                     }

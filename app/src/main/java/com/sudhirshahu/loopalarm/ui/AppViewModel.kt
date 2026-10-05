@@ -9,6 +9,7 @@ import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
+import com.sudhirshahu.loopalarm.data.notebook
 import com.sudhirshahu.loopalarm.ring.AlarmService
 import com.sudhirshahu.loopalarm.util.AppIcons
 import kotlinx.coroutines.Dispatchers
@@ -90,10 +91,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearHistory() = viewModelScope.launch { historyDao.clear() }
 
     fun updateSettings(transform: (AppSettings) -> AppSettings) = viewModelScope.launch {
-        val before = app.settings.current().appIcon
+        val before = app.settings.current()
         app.settings.update(transform)
-        val after = app.settings.current().appIcon
-        if (after != before) AppIcons.apply(app, after)
+        val after = app.settings.current()
+        // The launcher icon shows the background choice with a notebook page in the accent colour.
+        if (after.appIcon != before.appIcon || after.accent.notebook != before.accent.notebook) AppIcons.apply(app, after.appIcon, after.accent)
         reschedule() // refresh the next-alarm notification
     }
 }

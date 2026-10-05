@@ -12,8 +12,10 @@ import kotlinx.coroutines.flow.map
 
 enum class ThemeMode(val label: String) { SYSTEM("System"), LIGHT("Light"), DARK("Dark"), BLACK("AMOLED black") }
 
+/** App accent. [notebook] is the alias suffix for the matching launcher icon page colour ("" = white page). */
 enum class Accent(val label: String, val argb: Long) {
     DYNAMIC("Wallpaper", 0xFF6750A4),
+    WHITE("White", 0xFFFFFFFF),
     INDIGO("Indigo", 0xFF3F51B5),
     TEAL("Teal", 0xFF00897B),
     GREEN("Green", 0xFF43A047),
@@ -34,11 +36,11 @@ enum class CallBehavior(val label: String) {
 
 /** Home-screen icon choices. Each is an activity-alias in the manifest; [alias] is its class name suffix. */
 enum class AppIcon(val label: String, val alias: String, val argb: Long) {
-    DEFAULT("Orange", "LauncherDefault", 0xFFF4511E),
+    DEFAULT("Black", "LauncherDefault", 0xFF000000),
+    ORANGE("Orange", "LauncherOrange", 0xFFF4511E),
     INDIGO("Indigo", "LauncherIndigo", 0xFF3949AB),
     TEAL("Teal", "LauncherTeal", 0xFF00897B),
     PINK("Pink", "LauncherPink", 0xFFD81B60),
-    DARK("Dark", "LauncherDark", 0xFF212121),
 }
 
 data class AppSettings(
@@ -106,3 +108,7 @@ class SettingsRepository(private val context: Context) {
     private inline fun <reified E : Enum<E>> enumOr(name: String?, default: E): E =
         name?.let { runCatching { enumValueOf<E>(it) }.getOrNull() } ?: default
 }
+
+/** Launcher alias suffix for the notebook page colour; Wallpaper and White keep the white page. */
+val Accent.notebook: String
+    get() = if (this == Accent.DYNAMIC || this == Accent.WHITE) "" else name.lowercase().replaceFirstChar { it.uppercase() }

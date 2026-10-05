@@ -42,6 +42,31 @@ private fun schemeFromSeed(seed: Color, dark: Boolean): ColorScheme {
     }
 }
 
+/** White accent: white highlights on dark backgrounds; near-black on light ones, where white would not show. */
+private fun monochromeScheme(dark: Boolean): ColorScheme = if (dark) {
+    darkColorScheme(
+        primary = Color.White,
+        onPrimary = Color.Black,
+        primaryContainer = Color(0xFF3A3A3A),
+        onPrimaryContainer = Color.White,
+        secondary = Color(0xFFBDBDBD),
+        secondaryContainer = Color(0xFF2C2C2C),
+        onSecondaryContainer = Color.White,
+        tertiary = Color(0xFFE0E0E0),
+    )
+} else {
+    lightColorScheme(
+        primary = Color(0xFF212121),
+        onPrimary = Color.White,
+        primaryContainer = Color(0xFFE6E6E6),
+        onPrimaryContainer = Color(0xFF111111),
+        secondary = Color(0xFF616161),
+        secondaryContainer = Color(0xFFEEEEEE),
+        onSecondaryContainer = Color(0xFF1A1A1A),
+        tertiary = Color(0xFF424242),
+    )
+}
+
 @Composable
 fun LoopAlarmTheme(mode: ThemeMode, accent: Accent, content: @Composable () -> Unit) {
     val dark = when (mode) {
@@ -52,6 +77,8 @@ fun LoopAlarmTheme(mode: ThemeMode, accent: Accent, content: @Composable () -> U
     val context = LocalContext.current
     var scheme = if (accent == Accent.DYNAMIC && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else if (accent == Accent.WHITE) {
+        monochromeScheme(dark)
     } else {
         schemeFromSeed(Color(accent.argb), dark)
     }

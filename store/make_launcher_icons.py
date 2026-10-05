@@ -1,10 +1,12 @@
 """Generates the launcher icon for every colour choice, plus a preview image.
 
-The icon is a white spiral notebook with three coloured to-do rows and tabs, a yellow reminder bell over the
-bottom-right corner, on a coloured gradient. The colour choice (Settings > App icon) sets the gradient.
+The icon is a spiral notebook with three to-do rows and tabs, a yellow reminder bell over the bottom-right corner,
+on a gradient. Settings > App icon sets the gradient; the accent colour (Settings > Theme) sets the notebook page
+(white for the Wallpaper and White accents). Every pair is its own icon and activity-alias.
 
-Writes app/src/main/res/drawable/ic_launcher_{fg,bg}_<colour>.xml, ic_launcher_monochrome.xml, ic_stat_alarm.xml
-and mipmap-anydpi-v26/ic_launcher*.xml.
+Writes app/src/main/res/drawable/ic_launcher_bg_<colour>.xml, ic_launcher_fg[_<accent>].xml,
+ic_launcher_monochrome.xml, ic_stat_alarm.xml, mipmap-anydpi-v26/ic_launcher*.xml and the launcher activity-aliases
+in AndroidManifest.xml (between the launcher-aliases markers).
 Run: py make_launcher_icons.py [preview.png]   (rendering needs: pip install pillow matplotlib svgpath2mpl)
 """
 from pathlib import Path
@@ -12,13 +14,24 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 RES = ROOT / "app/src/main/res"
 
-# Background gradient (top-left, bottom-right) per choice. "default" is orange.
+# Background gradient (top-left, bottom-right) per choice. "default" is black.
 COLOURS = {
-    "default": ("#FFB74D", "#F4511E"),
+    "default": ("#2E2E2E", "#000000"),
+    "orange": ("#FFB74D", "#F4511E"),
     "indigo": ("#7986CB", "#303F9F"),
     "teal": ("#4DB6AC", "#00796B"),
     "pink": ("#F06292", "#C2185B"),
-    "dark": ("#616161", "#1E1E1E"),
+}
+# Notebook page colour per accent; must match the Accent enum in SettingsRepository.kt. "" is the white page.
+NOTEBOOKS = {
+    "": None,
+    "indigo": "#3F51B5",
+    "teal": "#00897B",
+    "green": "#43A047",
+    "orange": "#F57C00",
+    "red": "#E53935",
+    "pink": "#D81B60",
+    "purple": "#8E24AA",
 }
 TABS = ["#26C6DA", "#FF9800", "#FFE082", "#8BC34A"]
 ROWS = ["#1E88E5", "#E53935", "#FB8C00"]  # to-do bullets, top to bottom
@@ -65,24 +78,38 @@ def background(colours):
     return [("grad", "M0,0 h108 v108 h-108 z", (colours[0], colours[1], 0, 0, 108, 108))]
 
 
-def foreground():
-    """List of (kind, d, style). kind: fill | grad | stroke | badge. Same for every colour choice."""
+def mix(c, other, t):
+    a = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(other[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
+
+
+def foreground(page=None):
+    """List of (kind, d, style). kind: fill | grad | stroke | badge. [page] is the notebook colour; None is white."""
     out = []
     # tabs peeking out on the right
     for i, c in enumerate(TABS):
         out.append(("fill", rrect(BX + BW - 4, BY + 6 + i * 8.6, 8, 7.6, 1.8), c))
     # page, slightly shaded towards the bottom
-    out.append(("grad", rrect(BX, BY, BW, BH, BR), ("#FFFFFF", "#E6E6E6", BX, BY, BX, BY + BH)))
+    if page is None:
+        out.append(("grad", rrect(BX, BY, BW, BH, BR), ("#FFFFFF", "#E6E6E6", BX, BY, BX, BY + BH)))
+        rows, line = ROWS, LINE
+    else:
+        # coloured page with a white edge, so it still stands out on a background of the same colour
+        out.append(("grad", rrect(BX, BY, BW, BH, BR),
+                    (mix(page, "#FFFFFF", 0.12), mix(page, "#000000", 0.15), BX, BY, BX, BY + BH)))
+        out.append(("stroke", rrect(BX, BY, BW, BH, BR), (1.4, "#FFFFFF")))
+        rows, line = ["#FFFFFF"] * 3, mix(page, "#FFFFFF", 0.6)
     # spiral rings through the left edge
     for i in range(8):
         out.append(("fill", rrect(BX - 4.5, BY + 4.5 + i * 5.9, 9, 2.6, 1.3), RING))
     # three to-do rows: target bullet and a line
-    for i, c in enumerate(ROWS):
+    for i, c in enumerate(rows):
         cy = BY + 11 + i * 13
         cx = BX + 10.5
         out.append(("stroke", circle(cx, cy, 4.2), (1.9, c)))
         out.append(("fill", circle(cx, cy, 2.0), c))
-        out.append(("stroke", f"M{cx + 8},{cy} H{BX + BW - 6}", (2.2, LINE)))
+        out.append(("stroke", f"M{cx + 8},{cy} H{BX + BW - 6}", (2.2, line)))
     out.append(("badge", bell_path(BELL_X, BELL_Y, BELL_U), (BELL_FILL, BELL_EDGE)))
     return out
 
@@ -132,26 +159,72 @@ def glyph_xml(size, scale, offset, comment):
             '</vector>\n')
 
 
+def mipmap_name(bg, nb):
+    """ic_launcher (black, white page), ic_launcher_teal (teal, white page), ic_launcher_default_green, ..."""
+    if not nb:
+        return "ic_launcher" if bg == "default" else f"ic_launcher_{bg}"
+    return f"ic_launcher_{bg}_{nb}"
+
+
+def alias_name(bg, nb):
+    """Matches AppIcons.kt: AppIcon.alias + Accent.notebook, e.g. LauncherDefault, LauncherDefaultGreen."""
+    return "Launcher" + bg.capitalize() + nb.capitalize()
+
+
+def write_manifest_aliases():
+    path = ROOT / "app/src/main/AndroidManifest.xml"
+    text = path.read_bytes().decode("utf-8").replace("\r\n", "\n")
+    start, end = "<!-- launcher-aliases:start -->", "<!-- launcher-aliases:end -->"
+    head, rest = text.split(start)
+    _, tail = rest.split(end)
+    blocks = []
+    for bg in COLOURS:
+        for nb in NOTEBOOKS:
+            icon = mipmap_name(bg, nb)
+            enabled = "true" if bg == "default" and not nb else "false"
+            blocks.append(
+                '        <activity-alias\n'
+                f'            android:name=".{alias_name(bg, nb)}"\n'
+                f'            android:enabled="{enabled}"\n'
+                '            android:exported="true"\n'
+                f'            android:icon="@mipmap/{icon}"\n'
+                f'            android:roundIcon="@mipmap/{icon}"\n'
+                '            android:targetActivity=".ui.MainActivity">\n'
+                '            <intent-filter>\n'
+                '                <action android:name="android.intent.action.MAIN" />\n'
+                '                <category android:name="android.intent.category.LAUNCHER" />\n'
+                '            </intent-filter>\n'
+                '        </activity-alias>\n')
+    text = head + start + "\n" + "".join(blocks) + "        " + end + tail
+    path.write_bytes(text.replace("\n", "\r\n").encode("utf-8"))
+
+
 def write_resources():
     draw = RES / "drawable"
     mip = RES / "mipmap-anydpi-v26"
-    (draw / "ic_launcher_fg.xml").write_text(vector_xml(foreground(), "notebook with to-do rows and a reminder bell."), encoding="utf-8")
+    for old in [*draw.glob("ic_launcher_fg*.xml"), *draw.glob("ic_launcher_bg_*.xml"), *mip.glob("ic_launcher*.xml")]:
+        old.unlink()
+    fg = {nb: f"ic_launcher_fg_{nb}" if nb else "ic_launcher_fg" for nb in NOTEBOOKS}
+    for nb, page in NOTEBOOKS.items():
+        (draw / f"{fg[nb]}.xml").write_text(
+            vector_xml(foreground(page), f"{nb or 'white'} notebook with to-do rows and a reminder bell."), encoding="utf-8")
     for name, colours in COLOURS.items():
         (draw / f"ic_launcher_bg_{name}.xml").write_text(vector_xml(background(colours), f"{name} icon background."), encoding="utf-8")
-        icon = "ic_launcher" if name == "default" else f"ic_launcher_{name}"
-        (mip / f"{icon}.xml").write_text(
-            '<?xml version="1.0" encoding="utf-8"?>\n'
-            '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
-            f'    <background android:drawable="@drawable/ic_launcher_bg_{name}" />\n'
-            '    <foreground android:drawable="@drawable/ic_launcher_fg" />\n'
-            '    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />\n'
-            '</adaptive-icon>\n', encoding="utf-8")
+        for nb in NOTEBOOKS:
+            (mip / f"{mipmap_name(name, nb)}.xml").write_text(
+                '<?xml version="1.0" encoding="utf-8"?>\n'
+                '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
+                f'    <background android:drawable="@drawable/ic_launcher_bg_{name}" />\n'
+                f'    <foreground android:drawable="@drawable/{fg[nb]}" />\n'
+                '    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />\n'
+                '</adaptive-icon>\n', encoding="utf-8")
+    write_manifest_aliases()
     (draw / "ic_launcher_monochrome.xml").write_text(
         glyph_xml(108, 2, 30, "themed-icon layer (Android 13+), tinted by the system."), encoding="utf-8")
     (draw / "ic_stat_alarm.xml").write_text(glyph_xml(24, 1, 0, "status-bar icon."), encoding="utf-8")
 
 
-def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True):
+def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True, page=None):
     """Renders the icon (real gradients) to a px x px PNG covering [view] of the 108 space."""
     import matplotlib
     matplotlib.use("Agg")
@@ -166,7 +239,7 @@ def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True):
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(x0, x1); ax.set_ylim(y1, y0); ax.axis("off")
     pts_per_unit = 72 / (x1 - x0)
-    shapes = (background(colours) if with_background else []) + foreground()
+    shapes = (background(colours) if with_background else []) + foreground(page)
     n = 400
     gx, gy = np.meshgrid(np.linspace(x0, x1, n), np.linspace(y0, y1, n))
     for kind, d, style in shapes:
@@ -194,19 +267,23 @@ def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True):
 
 
 def preview(path):
-    """All colour choices side by side, cut to the circle a Pixel launcher shows (72dp of the 108dp icon)."""
+    """Every notebook colour on black, then every background with the white page, cut to the circle a Pixel
+    launcher shows (72dp of the 108dp icon)."""
     import tempfile
     from PIL import Image, ImageDraw
 
     size = 220
-    strip = Image.new("RGB", (size * len(COLOURS) + 20 * (len(COLOURS) + 1), size + 40), (207, 207, 207))
+    rows = [[(COLOURS["default"], page) for page in NOTEBOOKS.values()], [(c, None) for c in COLOURS.values()]]
+    cols = max(len(r) for r in rows)
+    strip = Image.new("RGB", (size * cols + 20 * (cols + 1), (size + 20) * len(rows) + 20), (207, 207, 207))
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
     with tempfile.TemporaryDirectory() as tmp:
-        for i, colours in enumerate(COLOURS.values()):
-            f = Path(tmp) / f"{i}.png"
-            render_png(f, colours, size, view=(18, 18, 90, 90))
-            strip.paste(Image.open(f).convert("RGB"), (20 + i * (size + 20), 20), mask)
+        for j, row in enumerate(rows):
+            for i, (colours, page) in enumerate(row):
+                f = Path(tmp) / f"{j}_{i}.png"
+                render_png(f, colours, size, view=(18, 18, 90, 90), page=page)
+                strip.paste(Image.open(f).convert("RGB"), (20 + i * (size + 20), 20 + j * (size + 20)), mask)
     strip.save(path)
 
 
