@@ -31,7 +31,7 @@ import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
 import com.sudhirshahu.loopalarm.util.Fmt
 import java.time.LocalTime
 
-/** Four quick steps in order: name, interval, start time, days. */
+/** Quick steps in order: name, interval, start time, days, and an optional picture. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuickAddSheet(
@@ -73,6 +73,8 @@ fun QuickAddSheet(
 
             Text("4. Days", style = MaterialTheme.typography.labelLarge)
             WeekDayChips(alarm.daysOfWeek) { alarm = alarm.copy(daysOfWeek = it) }
+
+            PictureSection(alarm.imageFile, title = "5. Picture (optional)", inCard = false) { alarm = alarm.copy(imageFile = it) }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(vertical = 12.dp)) {
                 OutlinedButton(onClick = { onMoreOptions(alarm) }, modifier = Modifier.weight(1f)) { Text("More options") }

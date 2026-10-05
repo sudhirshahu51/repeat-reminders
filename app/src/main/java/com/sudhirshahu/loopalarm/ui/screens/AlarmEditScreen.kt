@@ -447,7 +447,8 @@ private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZo
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
+/** Pick, crop or remove the reminder picture. Also used by Quick add, as a plain step ([inCard] false). */
+internal fun PictureSection(imageFile: String, title: String = "Picture", inCard: Boolean = true, onChange: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
@@ -470,7 +471,7 @@ private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
         value = withContext(Dispatchers.IO) { ImageStore.load(context, imageFile, 720)?.asImageBitmap() }
     }
 
-    Section("Picture") {
+    val body: @Composable () -> Unit = {
         bitmap?.let {
             Image(
                 it, "Reminder picture", contentScale = ContentScale.Fit,
@@ -492,6 +493,14 @@ private fun PictureSection(imageFile: String, onChange: (String) -> Unit) {
             "Shown in the notification and on the alarm screen when this reminder rings. Wide pictures fit notifications best.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+    if (inCard) {
+        Section(title, body)
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.labelLarge)
+            body()
+        }
     }
 
     cropSource?.let { src ->
