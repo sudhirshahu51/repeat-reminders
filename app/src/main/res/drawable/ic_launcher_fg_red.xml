@@ -13,14 +13,6 @@
         </aapt:attr>
     </path>
     <path android:strokeColor="#FFFFFF" android:strokeWidth="1.4" android:strokeLineCap="round" android:pathData="M38,29 h32 a5,5 0 0 1 5,5 v40 a5,5 0 0 1 -5,5 h-32 a5,5 0 0 1 -5,-5 v-40 a5,5 0 0 1 5,-5 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,33.5 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,39.4 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,45.3 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,51.2 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,57.1 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,63.0 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,68.9 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
-    <path android:fillColor="#B0BEC5" android:pathData="M29.8,74.80000000000001 h6.4 a1.3,1.3 0 0 1 1.3,1.3 v0.0 a1.3,1.3 0 0 1 -1.3,1.3 h-6.4 a1.3,1.3 0 0 1 -1.3,-1.3 v-0.0 a1.3,1.3 0 0 1 1.3,-1.3 z" />
     <path android:strokeColor="#FFFFFF" android:strokeWidth="1.9" android:strokeLineCap="round" android:pathData="M43.5,35.8 a4.2,4.2 0 1 1 0,8.4 a4.2,4.2 0 1 1 0,-8.4 z" />
     <path android:fillColor="#FFFFFF" android:pathData="M43.5,38.0 a2.0,2.0 0 1 1 0,4.0 a2.0,2.0 0 1 1 0,-4.0 z" />
     <path android:strokeColor="#F5B0AE" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M51.5,40 H69" />

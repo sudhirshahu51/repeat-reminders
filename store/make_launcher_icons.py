@@ -1,6 +1,6 @@
 """Generates the launcher icon for every colour choice, plus a preview image.
 
-The icon is a spiral notebook with three to-do rows and tabs, a yellow reminder bell over the bottom-right corner,
+The icon is a notebook with three to-do rows and tabs, a yellow reminder bell over the bottom-right corner,
 on a gradient. Settings > App icon sets the gradient; the accent colour (Settings > Theme) sets the notebook page
 (white for the Wallpaper and White accents). Every pair is its own icon and activity-alias.
 
@@ -38,7 +38,6 @@ NOTEBOOKS = {
 }
 TABS = ["#26C6DA", "#FF9800", "#FFE082", "#8BC34A"]
 ROWS = ["#1E88E5", "#E53935", "#FB8C00"]  # to-do bullets, top to bottom
-RING = "#B0BEC5"
 LINE = "#BDBDBD"
 
 # Geometry in the 108 x 108 adaptive-icon space; the artwork stays inside the 66dp safe zone (radius 33 around 54,54).
@@ -101,9 +100,6 @@ def foreground(page=None, night=False):
                     (mix(page, "#FFFFFF", 0.12), mix(page, "#000000", 0.15), BX, BY, BX, BY + BH)))
         out.append(("stroke", rrect(BX, BY, BW, BH, BR), (1.4, "#FFFFFF")))
         rows, line = ["#FFFFFF"] * 3, mix(page, "#FFFFFF", 0.6)
-    # spiral rings through the left edge
-    for i in range(8):
-        out.append(("fill", rrect(BX - 4.5, BY + 4.5 + i * 5.9, 9, 2.6, 1.3), RING))
     # three to-do rows: target bullet and a line
     for i, c in enumerate(rows):
         cy = BY + 11 + i * 13
