@@ -29,6 +29,8 @@ object Notifications {
     const val ID_NEXT = 1
     const val ID_RINGING = 2
     private const val ID_LOG_BASE = 10_000
+    private const val ID_LOG_SUMMARY = 3
+    private const val GROUP_LOG = "alarm_log"
 
     fun createChannels(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
@@ -125,10 +127,45 @@ object Notifications {
             .setShowWhen(true)
             .setAutoCancel(true)
             .setSilent(true)
-            .setGroup("alarm_log")
+            .setGroup(GROUP_LOG)
             .setContentIntent(mainActivityIntent(context))
             .build()
-        post(context, ID_LOG_BASE + (alarmId % 10_000).toInt(), n)
+        val id = ID_LOG_BASE + (alarmId % 10_000).toInt()
+        post(context, id, n)
+        postLogSummary(context, id, "$name · Rang at ${Fmt.time(firedAt, use24)} · ${outcome.label}")
+    }
+
+    /**
+     * Our own summary for the stacked log notes. Without it Android groups them under a summary it makes itself,
+     * which has no app icon. Lists the latest notes that are still in the shade.
+     */
+    private fun postLogSummary(context: Context, newId: Int, newLine: String) {
+        // The note just posted may not be listed yet, so it is added by hand.
+        val older = runCatching { context.getSystemService(NotificationManager::class.java).activeNotifications.toList() }.getOrDefault(emptyList())
+            .filter { it.notification.group == GROUP_LOG && it.id != ID_LOG_SUMMARY && it.id != newId }
+            .sortedByDescending { it.postTime }
+            .map { sbn ->
+                val extras = sbn.notification.extras
+                "${extras.getCharSequence(NotificationCompat.EXTRA_TITLE)} · ${extras.getCharSequence(NotificationCompat.EXTRA_TEXT)}"
+            }
+        val lines = listOf(newLine) + older
+        if (lines.size < 2) return
+        val count = "${lines.size} alarms rang"
+        val style = NotificationCompat.InboxStyle().setSummaryText(count)
+        lines.take(6).forEach { style.addLine(it) }
+        val n = NotificationCompat.Builder(context, CHANNEL_LOG)
+            .setSmallIcon(R.drawable.ic_stat_alarm)
+            .setLargeIcon(AppIcons.bitmap(context))
+            .setContentTitle("Repeat Reminders")
+            .setContentText(count)
+            .setStyle(style)
+            .setGroup(GROUP_LOG)
+            .setGroupSummary(true)
+            .setAutoCancel(true)
+            .setSilent(true)
+            .setContentIntent(mainActivityIntent(context))
+            .build()
+        post(context, ID_LOG_SUMMARY, n)
     }
 
     fun postRaw(context: Context, id: Int, n: android.app.Notification) = post(context, id, n)
