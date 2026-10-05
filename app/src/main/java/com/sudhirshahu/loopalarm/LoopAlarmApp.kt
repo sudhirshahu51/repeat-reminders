@@ -6,6 +6,7 @@ import com.sudhirshahu.loopalarm.data.AppDatabase
 import com.sudhirshahu.loopalarm.data.SettingsRepository
 import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.schedule.AlarmScheduler
+import com.sudhirshahu.loopalarm.util.AppIcons
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,6 +24,9 @@ class LoopAlarmApp : Application() {
         super.onCreate()
         Notifications.createChannels(this)
         appScope.launch { scheduler.rescheduleAll() }
+        // Re-apply the chosen launcher icon. An update can remove an icon alias (1.3.0 dropped "Orange");
+        // this runs after the update (MY_PACKAGE_REPLACED starts the app) so the app never loses its launcher entry.
+        appScope.launch { AppIcons.apply(this@LoopAlarmApp, settings.current().appIcon) }
     }
 }
 

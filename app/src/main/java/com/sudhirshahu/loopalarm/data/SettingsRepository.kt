@@ -34,9 +34,9 @@ enum class CallBehavior(val label: String) {
 
 /** Home-screen icon choices. Each is an activity-alias in the manifest; [alias] is its class name suffix. */
 enum class AppIcon(val label: String, val alias: String, val argb: Long) {
-    DEFAULT("Indigo", "LauncherDefault", 0xFF3F51B5),
+    DEFAULT("Orange", "LauncherDefault", 0xFFF4511E),
+    INDIGO("Indigo", "LauncherIndigo", 0xFF3949AB),
     TEAL("Teal", "LauncherTeal", 0xFF00897B),
-    ORANGE("Orange", "LauncherOrange", 0xFFF57C00),
     PINK("Pink", "LauncherPink", 0xFFD81B60),
     DARK("Dark", "LauncherDark", 0xFF212121),
 }
