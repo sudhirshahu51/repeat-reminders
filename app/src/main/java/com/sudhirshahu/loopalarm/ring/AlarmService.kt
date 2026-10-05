@@ -51,6 +51,7 @@ data class Ringing(
     val subtitle: String,
     val imageFile: String = "",
     val icon: String = "",
+    val notes: String = "",
 )
 
 object RingingState {
@@ -152,13 +153,14 @@ class AlarmService : Service() {
 
         val subtitle = Fmt.summary(primary, use24)
         val icon = primary.icon.ifBlank { alarms.firstOrNull { it.icon.isNotBlank() }?.icon.orEmpty() }
-        val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon)
+        val notes = alarms.map { it.notes.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+        val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes)
         RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly
         // While the phone is in use, a compact card over the current app replaces the full alarm screen.
         val usePopup = showScreen && settings.popupOverApps && isPhoneInUse() && popup.canShow()
-        goForeground(ringingNotification(primary, names, icon, now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
+        goForeground(ringingNotification(primary, names, icon, notes, now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
         if (usePopup) {
             popup.show(
                 ringing, picture?.asImageBitmap(), settings, Fmt.time(now, use24),
@@ -254,7 +256,7 @@ class AlarmService : Service() {
 
     /** [quiet] posts on a low-importance channel so no heads-up appears on top of the pop-up card. */
     private fun ringingNotification(
-        a: Alarm, names: String, icon: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, quiet: Boolean, picture: Bitmap?,
+        a: Alarm, names: String, icon: String, notes: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, quiet: Boolean, picture: Bitmap?,
     ): android.app.Notification {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val dismiss = PendingIntent.getService(this, 10, Intent(this, AlarmService::class.java).setAction(ACTION_DISMISS), flags)
@@ -263,7 +265,12 @@ class AlarmService : Service() {
         return NotificationCompat.Builder(this, if (quiet) Notifications.CHANNEL_RINGING_QUIET else Notifications.CHANNEL_RINGING)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(if (icon.isBlank()) names else "$icon $names")
-            .setContentText("${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}")
+            .setContentText(notes.ifEmpty { "${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}" })
+            .apply {
+                if (picture == null && notes.isNotEmpty()) {
+                    setStyle(NotificationCompat.BigTextStyle().bigText("${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}\n$notes"))
+                }
+            }
             .apply { if (picture == null && icon.isNotBlank()) setLargeIcon(ReminderIcons.bitmap(icon)) }
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)

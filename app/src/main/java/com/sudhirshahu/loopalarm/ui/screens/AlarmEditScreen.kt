@@ -149,6 +149,11 @@ fun AlarmEditScreen(
                     )
                 }
                 GroupField(a.groupName, groups) { a = a.copy(groupName = it) }
+                OutlinedTextField(
+                    value = a.notes, onValueChange = { a = a.copy(notes = it) },
+                    label = { Text("Notes") }, placeholder = { Text("One per line, e.g. Take with water") },
+                    minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth(),
+                )
             }
             PictureSection(a.imageFile) { a = a.copy(imageFile = it) }
             Section("Repeat / Single alarm") {

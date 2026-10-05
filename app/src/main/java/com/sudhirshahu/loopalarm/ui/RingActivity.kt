@@ -123,6 +123,11 @@ private fun RingScreen(r: Ringing, use24: Boolean, onSnooze: () -> Unit, onDismi
                     color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Text(r.subtitle, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f))
+                if (r.notes.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(r.notes, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
             }
             val picture = picture
             if (picture != null) {

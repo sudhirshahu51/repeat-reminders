@@ -1,21 +1,26 @@
 package com.sudhirshahu.loopalarm.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Alarm
@@ -43,7 +48,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -180,6 +188,33 @@ private fun GroupHeader(
     }
 }
 
+/** Colours of the app icon's to-do bullets, plus a few more; each card takes one by its id. */
+private val CardColours = listOf(
+    Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFF43A047),
+    Color(0xFF8E24AA), Color(0xFF00ACC1), Color(0xFFD81B60), Color(0xFF3949AB),
+)
+private val BulletColours = listOf(Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFF43A047), Color(0xFF8E24AA))
+
+/** A target bullet, like the to-do rows on the app icon. */
+@Composable
+private fun Bullet(colour: Color) {
+    Box(Modifier.padding(top = 3.dp).size(14.dp).border(2.dp, colour, CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(6.dp).background(colour, CircleShape))
+    }
+}
+
+@Composable
+private fun BulletRow(colour: Color, text: String, textColour: Color, style: TextStyle = MaterialTheme.typography.bodyMedium) {
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+        Bullet(colour)
+        Text(text, style = style, color = textColour, modifier = Modifier.padding(start = 10.dp))
+    }
+}
+
+/**
+ * A reminder as a notebook page: a coloured edge, the time with the switch and menu on the top row, and the details
+ * below as full-width rows with coloured bullets, followed by the notes.
+ */
 @Composable
 private fun AlarmCard(
     a: Alarm,
@@ -193,38 +228,72 @@ private fun AlarmCard(
     onRingNow: (Alarm) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val dim = if (a.enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-    Card(Modifier.fillMaxWidth().clickable { onEdit(a) }) {
-        Row(Modifier.padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.padding(end = 12.dp).size(44.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (a.icon.isBlank()) Icon(Icons.Filled.Alarm, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                else Text(a.icon, fontSize = 22.sp)
-            }
-            Column(Modifier.weight(1f)) {
-                Text(Fmt.minuteOfDay(a.startMinute, use24), style = MaterialTheme.typography.headlineMedium, color = dim)
-                Text(a.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = dim)
-                Text(Fmt.summary(a, use24), style = MaterialTheme.typography.bodyMedium, color = dim)
-                Text(Fmt.schedule(a), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                if (a.enabled) {
-                    val label = when {
-                        next == null -> "No upcoming rings for this schedule"
-                        a.snoozeUntil > now && a.snoozeUntil == next -> "Snoozed until ${Fmt.time(next, use24)}"
-                        else -> "Rings ${Fmt.dateTime(next, use24)} (${Fmt.relative(next, now)})"
+    val alpha = if (a.enabled) 1f else 0.45f
+    val colour = CardColours[(a.id % CardColours.size).toInt()].copy(alpha = alpha)
+    val bullets = BulletColours.map { it.copy(alpha = alpha) }
+    val text = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
+    val soft = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+    Card(
+        Modifier.fillMaxWidth().clickable { onEdit(a) },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Row(Modifier.height(IntrinsicSize.Min)) {
+            Box(Modifier.width(6.dp).fillMaxHeight().background(colour))
+            Column(Modifier.weight(1f).padding(start = 12.dp, top = 10.dp, bottom = 14.dp, end = 2.dp)) {
+                // Top row: icon, time, then the switch and menu, so the text below gets the full width.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier.size(40.dp).clip(CircleShape).background(colour.copy(alpha = 0.18f * alpha)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (a.icon.isBlank()) Icon(Icons.Filled.Alarm, null, tint = colour)
+                        else Text(a.icon, fontSize = 22.sp, modifier = Modifier.alpha(alpha))
                     }
-                    Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        Fmt.minuteOfDay(a.startMinute, use24),
+                        style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = text,
+                        modifier = Modifier.padding(start = 12.dp),
+                    )
+                    Text(
+                        Fmt.interval(a),
+                        style = MaterialTheme.typography.labelMedium, color = colour,
+                        modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(8.dp))
+                            .background(colour.copy(alpha = 0.14f * alpha)).padding(horizontal = 8.dp, vertical = 2.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Switch(checked = a.enabled, onCheckedChange = { onToggle(a, it) })
+                    Box {
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit(a) })
+                            DropdownMenuItem(text = { Text("Test ring now") }, onClick = { menu = false; onRingNow(a) })
+                            DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate(a) })
+                            DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete(a) })
+                        }
+                    }
                 }
-            }
-            Switch(checked = a.enabled, onCheckedChange = { onToggle(a, it) })
-            Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Edit") }, onClick = { menu = false; onEdit(a) })
-                    DropdownMenuItem(text = { Text("Test ring now") }, onClick = { menu = false; onRingNow(a) })
-                    DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menu = false; onDuplicate(a) })
-                    DropdownMenuItem(text = { Text("Delete") }, onClick = { menu = false; onDelete(a) })
+                Column(Modifier.padding(end = 12.dp)) {
+                    Text(
+                        a.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = text,
+                        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                    )
+                    BulletRow(bullets[0], Fmt.summary(a, use24), text)
+                    BulletRow(bullets[1], Fmt.schedule(a), soft)
+                    if (a.enabled) {
+                        val label = when {
+                            next == null -> "No upcoming rings for this schedule"
+                            a.snoozeUntil > now && a.snoozeUntil == next -> "Snoozed until ${Fmt.time(next, use24)}"
+                            else -> "Rings ${Fmt.dateTime(next, use24)} (${Fmt.relative(next, now)})"
+                        }
+                        BulletRow(bullets[2], label, colour, MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                    }
+                    val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
+                    if (notes.isNotEmpty()) {
+                        Box(Modifier.padding(top = 10.dp, bottom = 2.dp).fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                        notes.forEachIndexed { i, note -> BulletRow(bullets[(3 + i) % bullets.size], note, text) }
+                    }
                 }
             }
         }

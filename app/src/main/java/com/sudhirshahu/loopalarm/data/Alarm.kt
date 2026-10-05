@@ -25,6 +25,8 @@ data class Alarm(
     @ColumnInfo(defaultValue = "") val icon: String = "",
     /** reminders with the same group name are listed together; empty means ungrouped */
     @ColumnInfo(defaultValue = "") val groupName: String = "",
+    /** free-text notes, shown on the card and when the reminder rings */
+    @ColumnInfo(defaultValue = "") val notes: String = "",
 
     /** false = rings once at the start time on each matching day, ignoring the interval and window end */
     @ColumnInfo(defaultValue = "1") val repeating: Boolean = true,
