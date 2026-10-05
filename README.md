@@ -26,7 +26,7 @@ Everything runs on the phone, so no server or account is needed.
 | - | Emoji icon per reminder, shown in the list, notification and alarm screen | Editor, *Name* |
 | - | Groups: list sections with one switch for the whole group | Editor, *Name*; Alarms list |
 | - | Pop-up card over other apps while the phone is in use | Settings, *Notifications*; `ring/PopupOverlay.kt` |
-| - | Home-screen icon: black or coloured background, notebook page in the accent colour (activity aliases) | Settings, *App icon* |
+| - | Home-screen icon: Auto background (black in light mode, white in dark mode) or a colour, notebook page in the accent colour (activity aliases) | Settings, *App icon* |
 | - | Birthday import from phone calendars or .ics / .vcf files (Google Contacts export, other apps), as yearly reminders | Cake button on the Alarms tab |
 
 ### About YouTube Music and other streaming apps

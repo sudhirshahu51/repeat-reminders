@@ -34,7 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import com.sudhirshahu.loopalarm.BuildConfig
@@ -130,14 +132,19 @@ fun SettingsScreen(
                 AppIcon.entries.forEach { icon ->
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
-                            Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).background(Color(icon.argb))
+                            Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    // Auto: black in light mode, white in dark mode
+                                    if (icon == AppIcon.DEFAULT) Brush.linearGradient(0.5f to Color.Black, 0.5f to Color.White)
+                                    else SolidColor(Color(icon.argb)),
+                                )
                                 .border(if (settings.appIcon == icon) 3.dp else 0.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(14.dp))
                                 .clickable { onChange { it.copy(appIcon = icon) } },
                             contentAlignment = Alignment.Center,
                         ) {
                             // The notebook page in the middle follows the accent colour.
                             val page = if (settings.accent.notebook.isEmpty()) Color.White else Color(settings.accent.argb)
-                            Box(Modifier.size(22.dp, 26.dp).background(page, RoundedCornerShape(4.dp)).border(1.dp, Color.White, RoundedCornerShape(4.dp)))
+                            Box(Modifier.size(22.dp, 26.dp).background(page, RoundedCornerShape(4.dp)).border(1.dp, Color.Gray, RoundedCornerShape(4.dp)))
                             if (settings.appIcon == icon) Icon(Icons.Filled.Check, null, tint = if (page == Color.White) Color.Black else Color.White)
                         }
                         Text(icon.label, style = MaterialTheme.typography.labelSmall)

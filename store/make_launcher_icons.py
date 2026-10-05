@@ -22,6 +22,9 @@ COLOURS = {
     "teal": ("#4DB6AC", "#00796B"),
     "pink": ("#F06292", "#C2185B"),
 }
+# In dark mode (res/drawable-night) the default background turns white, and the white page gets a grey edge.
+NIGHT_DEFAULT = ("#FFFFFF", "#DCDCDC")
+NIGHT_PAGE_EDGE = "#9E9E9E"
 # Notebook page colour per accent; must match the Accent enum in SettingsRepository.kt. "" is the white page.
 NOTEBOOKS = {
     "": None,
@@ -84,7 +87,7 @@ def mix(c, other, t):
     return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
 
 
-def foreground(page=None):
+def foreground(page=None, night=False):
     """List of (kind, d, style). kind: fill | grad | stroke | badge. [page] is the notebook colour; None is white."""
     out = []
     # tabs peeking out on the right
@@ -93,6 +96,8 @@ def foreground(page=None):
     # page, slightly shaded towards the bottom
     if page is None:
         out.append(("grad", rrect(BX, BY, BW, BH, BR), ("#FFFFFF", "#E6E6E6", BX, BY, BX, BY + BH)))
+        if night:
+            out.append(("stroke", rrect(BX, BY, BW, BH, BR), (1.0, NIGHT_PAGE_EDGE)))
         rows, line = ROWS, LINE
     else:
         # coloured page with a white edge, so it still stands out on a background of the same colour
@@ -219,12 +224,21 @@ def write_resources():
                 '    <monochrome android:drawable="@drawable/ic_launcher_monochrome" />\n'
                 '</adaptive-icon>\n', encoding="utf-8")
     write_manifest_aliases()
+    # Dark mode: white default background; the white page needs an edge to show on it.
+    night = RES / "drawable-night"
+    night.mkdir(exist_ok=True)
+    for old in night.glob("ic_launcher_*.xml"):
+        old.unlink()
+    (night / "ic_launcher_bg_default.xml").write_text(
+        vector_xml(background(NIGHT_DEFAULT), "default icon background in dark mode."), encoding="utf-8")
+    (night / "ic_launcher_fg.xml").write_text(
+        vector_xml(foreground(None, night=True), "white notebook (with an edge) in dark mode."), encoding="utf-8")
     (draw / "ic_launcher_monochrome.xml").write_text(
         glyph_xml(108, 2, 30, "themed-icon layer (Android 13+), tinted by the system."), encoding="utf-8")
     (draw / "ic_stat_alarm.xml").write_text(glyph_xml(24, 1, 0, "status-bar icon."), encoding="utf-8")
 
 
-def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True, page=None):
+def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True, page=None, night=False):
     """Renders the icon (real gradients) to a px x px PNG covering [view] of the 108 space."""
     import matplotlib
     matplotlib.use("Agg")
@@ -239,7 +253,7 @@ def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True, p
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(x0, x1); ax.set_ylim(y1, y0); ax.axis("off")
     pts_per_unit = 72 / (x1 - x0)
-    shapes = (background(colours) if with_background else []) + foreground(page)
+    shapes = (background(colours) if with_background else []) + foreground(page, night)
     n = 400
     gx, gy = np.meshgrid(np.linspace(x0, x1, n), np.linspace(y0, y1, n))
     for kind, d, style in shapes:
@@ -267,22 +281,24 @@ def render_png(path, colours, px, view=(14, 14, 94, 94), with_background=True, p
 
 
 def preview(path):
-    """Every notebook colour on black, then every background with the white page, cut to the circle a Pixel
+    """Every notebook colour on black (light mode) and on white (dark mode), then every background with the white page, cut to the circle a Pixel
     launcher shows (72dp of the 108dp icon)."""
     import tempfile
     from PIL import Image, ImageDraw
 
     size = 220
-    rows = [[(COLOURS["default"], page) for page in NOTEBOOKS.values()], [(c, None) for c in COLOURS.values()]]
+    rows = [[(COLOURS["default"], page, False) for page in NOTEBOOKS.values()],
+            [(NIGHT_DEFAULT, page, True) for page in NOTEBOOKS.values()],
+            [(c, None, False) for c in COLOURS.values()]]
     cols = max(len(r) for r in rows)
     strip = Image.new("RGB", (size * cols + 20 * (cols + 1), (size + 20) * len(rows) + 20), (207, 207, 207))
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
     with tempfile.TemporaryDirectory() as tmp:
         for j, row in enumerate(rows):
-            for i, (colours, page) in enumerate(row):
+            for i, (colours, page, night) in enumerate(row):
                 f = Path(tmp) / f"{j}_{i}.png"
-                render_png(f, colours, size, view=(18, 18, 90, 90), page=page)
+                render_png(f, colours, size, view=(18, 18, 90, 90), page=page, night=night)
                 strip.paste(Image.open(f).convert("RGB"), (20 + i * (size + 20), 20 + j * (size + 20)), mask)
     strip.save(path)
 
