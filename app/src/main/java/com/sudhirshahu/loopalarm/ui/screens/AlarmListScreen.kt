@@ -1,7 +1,7 @@
 package com.sudhirshahu.loopalarm.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,12 +22,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -51,10 +53,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sudhirshahu.loopalarm.R
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
 import com.sudhirshahu.loopalarm.util.Fmt
@@ -188,35 +193,31 @@ private fun GroupHeader(
     }
 }
 
-/** Colours of the app icon's to-do bullets, plus a few more; each card takes one by its id. */
+/** Card edge colours, taken from the app icon; each card takes one by its id. */
 private val CardColours = listOf(
     Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFF43A047),
     Color(0xFF8E24AA), Color(0xFF00ACC1), Color(0xFFD81B60), Color(0xFF3949AB),
 )
-private val BulletColours = listOf(Color(0xFF1E88E5), Color(0xFFE53935), Color(0xFFFB8C00), Color(0xFF43A047), Color(0xFF8E24AA))
 
-/** A target bullet, like the to-do rows on the app icon. */
-@Composable
-private fun Bullet(colour: Color) {
-    Box(Modifier.padding(top = 3.dp).size(14.dp).border(2.dp, colour, CircleShape), contentAlignment = Alignment.Center) {
-        Box(Modifier.size(6.dp).background(colour, CircleShape))
-    }
-}
+/** Highlight for the "Rings …" line, deliberately not one of the card colours; lighter on dark backgrounds. */
+private val NextRingColour = Color(0xFF00897B)
+private val NextRingColourDark = Color(0xFF4DB6AC)
 
+/** A plain detail line with a small grey icon. */
 @Composable
-private fun BulletRow(colour: Color, text: String, textColour: Color, style: TextStyle = MaterialTheme.typography.bodyMedium) {
-    Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-        Bullet(colour)
-        Text(text, style = style, color = textColour, modifier = Modifier.padding(start = 10.dp))
+private fun DetailRow(icon: ImageVector, text: String, colour: Color) {
+    Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(16.dp), tint = colour)
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = colour, modifier = Modifier.padding(start = 8.dp))
     }
 }
 
 /**
- * A reminder as a notebook page: a coloured edge, the time with the switch and menu on the top row, and the details
- * below as full-width rows with coloured bullets, followed by the notes.
+ * A reminder as a notebook page: a coloured edge, the bell (or emoji) and time with the switch and menu on the top
+ * row, and the details below as clean full-width lines, with only the next ring highlighted.
  */
 @Composable
-private fun AlarmCard(
+internal fun AlarmCard(
     a: Alarm,
     next: Long?,
     now: Long,
@@ -230,9 +231,9 @@ private fun AlarmCard(
     var menu by remember { mutableStateOf(false) }
     val alpha = if (a.enabled) 1f else 0.45f
     val colour = CardColours[(a.id % CardColours.size).toInt()].copy(alpha = alpha)
-    val bullets = BulletColours.map { it.copy(alpha = alpha) }
     val text = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
     val soft = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
+    val nextColour = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) NextRingColourDark else NextRingColour
     Card(
         Modifier.fillMaxWidth().clickable { onEdit(a) },
         shape = RoundedCornerShape(20.dp),
@@ -242,25 +243,22 @@ private fun AlarmCard(
         Row(Modifier.height(IntrinsicSize.Min)) {
             Box(Modifier.width(6.dp).fillMaxHeight().background(colour))
             Column(Modifier.weight(1f).padding(start = 12.dp, top = 10.dp, bottom = 14.dp, end = 2.dp)) {
-                // Top row: icon, time, then the switch and menu, so the text below gets the full width.
+                // Top row: bell, time, then the switch and menu, so the text below gets the full width.
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
-                        Modifier.size(40.dp).clip(CircleShape).background(colour.copy(alpha = 0.18f * alpha)),
+                        Modifier.size(40.dp).clip(CircleShape).background(colour.copy(alpha = 0.16f * alpha)),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (a.icon.isBlank()) Icon(Icons.Filled.Alarm, null, tint = colour)
-                        else Text(a.icon, fontSize = 22.sp, modifier = Modifier.alpha(alpha))
+                        if (a.icon.isBlank()) {
+                            Image(painterResource(R.drawable.ic_bell_badge), null, Modifier.size(26.dp).alpha(alpha))
+                        } else {
+                            Text(a.icon, fontSize = 22.sp, modifier = Modifier.alpha(alpha))
+                        }
                     }
                     Text(
                         Fmt.minuteOfDay(a.startMinute, use24),
                         style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = text,
                         modifier = Modifier.padding(start = 12.dp),
-                    )
-                    Text(
-                        Fmt.interval(a),
-                        style = MaterialTheme.typography.labelMedium, color = colour,
-                        modifier = Modifier.padding(start = 8.dp).clip(RoundedCornerShape(8.dp))
-                            .background(colour.copy(alpha = 0.14f * alpha)).padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                     Spacer(Modifier.weight(1f))
                     Switch(checked = a.enabled, onCheckedChange = { onToggle(a, it) })
@@ -279,20 +277,30 @@ private fun AlarmCard(
                         a.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = text,
                         modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
                     )
-                    BulletRow(bullets[0], Fmt.summary(a, use24), text)
-                    BulletRow(bullets[1], Fmt.schedule(a), soft)
+                    DetailRow(Icons.Outlined.Repeat, Fmt.summary(a, use24), soft)
+                    DetailRow(Icons.Outlined.CalendarMonth, Fmt.schedule(a), soft)
                     if (a.enabled) {
                         val label = when {
                             next == null -> "No upcoming rings for this schedule"
                             a.snoozeUntil > now && a.snoozeUntil == next -> "Snoozed until ${Fmt.time(next, use24)}"
                             else -> "Rings ${Fmt.dateTime(next, use24)} (${Fmt.relative(next, now)})"
                         }
-                        BulletRow(bullets[2], label, colour, MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium))
+                        Row(
+                            Modifier.padding(top = 8.dp).clip(RoundedCornerShape(10.dp))
+                                .background(nextColour.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(8.dp).background(nextColour, CircleShape))
+                            Text(
+                                label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium,
+                                color = nextColour, modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
                     }
                     val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
                     if (notes.isNotEmpty()) {
                         Box(Modifier.padding(top = 10.dp, bottom = 2.dp).fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
-                        notes.forEachIndexed { i, note -> BulletRow(bullets[(3 + i) % bullets.size], note, text) }
+                        notes.forEach { note -> DetailRow(Icons.AutoMirrored.Outlined.StickyNote2, note, text) }
                     }
                 }
             }

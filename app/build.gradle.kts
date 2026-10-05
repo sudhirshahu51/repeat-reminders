@@ -15,8 +15,8 @@ android {
         applicationId = "com.sudhirshahu.loopalarm"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.4.1"
+        versionCode = 10
+        versionName = "1.4.2"
     }
 
     // Upload key for Google Play. keystore.properties and the .jks file stay on this machine only.
@@ -51,6 +51,9 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }    // Robolectric renders Compose screens in unit tests (see ui/screens/CardScreenshotTest).
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 
@@ -61,6 +64,7 @@ ksp {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
+    testImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
@@ -80,4 +84,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.6.1")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
