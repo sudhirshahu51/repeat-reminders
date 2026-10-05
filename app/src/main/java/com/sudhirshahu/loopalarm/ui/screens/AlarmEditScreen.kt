@@ -151,10 +151,10 @@ fun AlarmEditScreen(
                 GroupField(a.groupName, groups) { a = a.copy(groupName = it) }
             }
             PictureSection(a.imageFile) { a = a.copy(imageFile = it) }
-            Section("Repeat") {
+            Section("Repeat / Single alarm") {
                 SwitchRow(
-                    "Repeat",
-                    if (a.repeating) "Rings again every interval until the window ends" else "Single alarm: rings once at the start time",
+                    if (a.repeating) "Repeat" else "Single alarm",
+                    if (a.repeating) "Rings again every interval until the window ends" else "Rings once at the start time",
                     a.repeating,
                 ) { a = a.copy(repeating = it) }
                 if (a.repeating) IntervalPicker(a.intervalValue, a.intervalUnit) { v, u -> a = a.copy(intervalValue = v, intervalUnit = u) }
