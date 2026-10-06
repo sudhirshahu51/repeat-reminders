@@ -52,8 +52,11 @@ data class AppSettings(
     val keepNotificationAfterAlarm: Boolean = true,
     val callBehavior: CallBehavior = CallBehavior.VIBRATE,
     val overrideDnd: Boolean = false,
-    /** While the phone is in use, show a compact card on top of other apps instead of the full alarm screen. */
-    val popupOverApps: Boolean = true,
+    /**
+     * While the phone is in use, show a compact card on top of other apps instead of opening the full alarm screen.
+     * Off by default (1.4.5+): the alarm screen shows the whole message.
+     */
+    val popupOverApps: Boolean = false,
     val appIcon: AppIcon = AppIcon.DEFAULT,
 )
 
@@ -68,7 +71,8 @@ class SettingsRepository(private val context: Context) {
         val keepNotif = booleanPreferencesKey("keep_notification")
         val callBehavior = stringPreferencesKey("call_behavior")
         val overrideDnd = booleanPreferencesKey("override_dnd")
-        val popup = booleanPreferencesKey("popup_over_apps")
+        // New key in 1.4.5: the old "popup_over_apps" was saved as on for most people, and the default is now off.
+        val popup = booleanPreferencesKey("popup_over_apps_v2")
         val appIcon = stringPreferencesKey("app_icon")
     }
 

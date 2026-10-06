@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
@@ -18,6 +19,8 @@ import com.sudhirshahu.loopalarm.data.Accent
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.IntervalUnit
 import com.sudhirshahu.loopalarm.data.ThemeMode
+import com.sudhirshahu.loopalarm.ring.Ringing
+import com.sudhirshahu.loopalarm.ui.RingScreen
 import com.sudhirshahu.loopalarm.ui.theme.LoopAlarmTheme
 import org.junit.Rule
 import org.junit.Test
@@ -27,7 +30,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
-/** Renders sample reminder cards to app/build/screenshots/ so the design can be checked without a phone. */
+/** Renders sample screens to app/build/screenshots/ so the design can be checked without a phone. */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xxhdpi")
@@ -41,18 +44,11 @@ class CardScreenshotTest {
         Alarm(id = 3, name = "Stretch", intervalValue = 1, intervalUnit = IntervalUnit.HOURS, startMinute = 10 * 60, enabled = false) to null,
     )
 
-    private fun shoot(name: String, mode: ThemeMode) {
-        compose.setContent {
-            LoopAlarmTheme(mode, Accent.INDIGO) {
-                Column(
-                    Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    samples.forEach { (a, next) -> AlarmCard(a, next, now, false, { _, _ -> }, {}, {}, {}, {}) }
-                }
-            }
-        }
-        compose.waitForIdle()
+    private fun shoot(name: String, mode: ThemeMode, content: @Composable () -> Unit) {
+        // The alarm screen has an endless pulse animation, so the clock is moved by hand instead of waiting for idle.
+        compose.mainClock.autoAdvance = false
+        compose.setContent { LoopAlarmTheme(mode, Accent.INDIGO) { content() } }
+        compose.mainClock.advanceTimeBy(500)
         // captureToImage() waits for a hardware redraw that never comes under Robolectric, so draw the view directly.
         val size = compose.onRoot().fetchSemanticsNode().size
         val view = compose.activity.findViewById<View>(android.R.id.content)
@@ -63,7 +59,27 @@ class CardScreenshotTest {
         File(out, "$name.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    @Test fun cardsLight() = shoot("cards-light", ThemeMode.LIGHT)
+    @Composable
+    private fun Cards() {
+        Column(
+            Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            samples.forEach { (a, next) -> AlarmCard(a, next, now, false, { _, _ -> }, {}, {}, {}, {}) }
+        }
+    }
 
-    @Test fun cardsDark() = shoot("cards-dark", ThemeMode.DARK)
+    @Test fun cardsLight() = shoot("cards-light", ThemeMode.LIGHT) { Cards() }
+
+    @Test fun cardsDark() = shoot("cards-dark", ThemeMode.DARK) { Cards() }
+
+    @Test fun alarmScreen() = shoot("alarm-screen", ThemeMode.DARK) {
+        RingScreen(
+            Ringing(
+                names = "Medicine", firedAt = now, snoozeMinutes = 5, subtitle = "Every 30 min · from 9:00 PM until midnight",
+                notes = "Take after dinner\nOne tablet with a full glass of water\nRefill the box on Sunday",
+            ),
+            use24 = false, onSnooze = {}, onDismiss = {},
+        )
+    }
 }

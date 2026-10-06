@@ -120,9 +120,10 @@ fun SettingsScreen(
             Toggle("Keep a note after each alarm", "Silent notification saying when the alarm rang and how it ended",
                 settings.keepNotificationAfterAlarm) { v -> onChange { it.copy(keepNotificationAfterAlarm = v) } }
             Toggle(
-                "Pop-up over other apps",
-                "While you're using the phone, show a small card with Snooze and Dismiss on top of any app instead of " +
-                    "the full alarm screen. Needs 'Display over other apps' (Permissions).",
+                "Small pop-up instead of the alarm screen",
+                "Off: a ringing alarm always opens the app's alarm screen with the full message, picture and notes. " +
+                    "On: while you're using the phone, show a small card with Snooze and Dismiss on top of the current app. " +
+                    "Both need 'Display over other apps' (Permissions) to open while the phone is unlocked.",
                 settings.popupOverApps,
             ) { v -> onChange { it.copy(popupOverApps = v) } }
         }
