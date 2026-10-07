@@ -27,6 +27,7 @@ import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
+import com.sudhirshahu.loopalarm.data.NotePoints
 import com.sudhirshahu.loopalarm.data.Outcome
 import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.ui.RingActivity
@@ -160,7 +161,8 @@ class AlarmService : Service() {
 
         val subtitle = Fmt.summary(primary, use24)
         val icon = primary.icon.ifBlank { alarms.firstOrNull { it.icon.isNotBlank() }?.icon.orEmpty() }
-        val notes = alarms.map { it.notes.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
+        // With their bullets / numbers / checkboxes, for the notification and the pop-up.
+        val notes = alarms.flatMap { NotePoints.displayLines(it.notes) }.joinToString("\n")
         val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes, alarms.map { it.id })
         RingingState.mutable.value = ringing
 

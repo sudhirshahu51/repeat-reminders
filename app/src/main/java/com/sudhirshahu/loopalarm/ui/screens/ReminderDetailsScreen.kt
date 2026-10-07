@@ -58,6 +58,7 @@ import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
+import com.sudhirshahu.loopalarm.ui.components.NotePointsView
 import com.sudhirshahu.loopalarm.util.Fmt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -69,9 +70,16 @@ import kotlinx.coroutines.withContext
  * Not scrollable itself; the caller scrolls it.
  *
  * [ringing] drops the parts that make no sense while it rings (next ring, on / off state).
+ * With [onNotesChange], checklist points can be ticked off here.
  */
 @Composable
-internal fun ReminderDetailsContent(a: Alarm, use24: Boolean, ringing: Boolean = false, modifier: Modifier = Modifier) {
+internal fun ReminderDetailsContent(
+    a: Alarm,
+    use24: Boolean,
+    ringing: Boolean = false,
+    modifier: Modifier = Modifier,
+    onNotesChange: ((String) -> Unit)? = null,
+) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     if (!ringing) {
         LaunchedEffect(Unit) {
@@ -97,14 +105,10 @@ internal fun ReminderDetailsContent(a: Alarm, use24: Boolean, ringing: Boolean =
             )
         }
 
-        // Below, the full width for the title and the description (the notes)
+        // Below, the full width for the title and the description (the notes, as their bullet / number / checklist points)
         Column(Modifier.fillMaxWidth()) {
             Text(a.displayName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
-            val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
-            notes.forEach { note ->
-                Text(note, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(top = 8.dp))
-            }
+            if (a.notes.isNotBlank()) NotePointsView(a.notes, Modifier.padding(top = 10.dp), onChange = onNotesChange)
         }
 
         DetailsCard("Schedule") {
@@ -192,6 +196,7 @@ fun ReminderDetailsScreen(
     onRingNow: (Alarm) -> Unit,
     onDuplicate: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit,
+    onNotesChange: (Alarm, String) -> Unit = { _, _ -> },
 ) {
     var menu by remember { mutableStateOf(false) }
     Scaffold(
@@ -219,6 +224,7 @@ fun ReminderDetailsScreen(
     ) { pad ->
         ReminderDetailsContent(
             a, use24,
+            onNotesChange = { onNotesChange(a, it) },
             modifier = Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(16.dp),
         )
     }

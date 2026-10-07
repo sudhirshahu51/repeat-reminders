@@ -76,9 +76,16 @@ class CardScreenshotTest {
 
     private val medicine = Alarm(
         id = 2, name = "Medicine", intervalValue = 30, startMinute = 21 * 60, groupName = "Health",
-        notes = "Take after dinner\nOne tablet with a full glass of water\nRefill the box on Sunday",
+        notes = "[x] Take after dinner\n[ ] One tablet with a full glass of water\n[ ] Refill the box on Sunday",
         soundTitle = "Classic beep", snoozeMinutes = 10,
     )
+
+    /** The Notes section of the editor, as numbered points. */
+    @Test fun notesEditor() = shoot("notes-editor", ThemeMode.LIGHT) {
+        Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) {
+            com.sudhirshahu.loopalarm.ui.components.NotesEditor("1. Take after dinner\n2. One tablet with water\n3. Refill the box on Sunday") {}
+        }
+    }
 
     @Test fun detailsPage() = shoot("details-page", ThemeMode.LIGHT) {
         ReminderDetailsScreen(medicine, false, {}, {}, { _, _ -> }, {}, {}, {})

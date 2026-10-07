@@ -105,6 +105,7 @@ import com.sudhirshahu.loopalarm.ring.SoundPlayer
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
 import com.sudhirshahu.loopalarm.ui.components.CropDialog
 import com.sudhirshahu.loopalarm.ui.components.IntervalPicker
+import com.sudhirshahu.loopalarm.ui.components.NotesEditor
 import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
 import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
 import com.sudhirshahu.loopalarm.ui.components.applyMarks
@@ -159,11 +160,9 @@ fun AlarmEditScreen(
                     )
                 }
                 GroupField(a.groupName, groups) { a = a.copy(groupName = it) }
-                OutlinedTextField(
-                    value = a.notes, onValueChange = { a = a.copy(notes = it) },
-                    label = { Text("Notes") }, placeholder = { Text("One per line, e.g. Take with water") },
-                    minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth(),
-                )
+            }
+            Section("Notes") {
+                NotesEditor(a.notes) { a = a.copy(notes = it) }
             }
             PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {

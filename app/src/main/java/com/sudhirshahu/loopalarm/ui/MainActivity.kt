@@ -239,6 +239,7 @@ private fun AppRoot(
                         onRingNow = { r -> vm.ringNow(r) },
                         onDuplicate = { r -> vm.duplicate(r); nav.popBackStack() },
                         onDelete = { r -> vm.delete(r); nav.popBackStack() },
+                        onNotesChange = { r, notes -> vm.setNotes(r, notes) },
                     )
                 }
             }

@@ -81,6 +81,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         cleanupImages()
     }
 
+    /** Ticking a checklist point on the details page: only the notes change, the schedule stays as it is. */
+    fun setNotes(alarm: Alarm, notes: String) = viewModelScope.launch { alarmDao.upsert(alarm.copy(notes = notes)) }
+
     fun duplicate(alarm: Alarm) = save(alarm.copy(id = 0, name = alarm.name + " (copy)", createdAt = System.currentTimeMillis()))
 
     fun ringNow(alarm: Alarm) {

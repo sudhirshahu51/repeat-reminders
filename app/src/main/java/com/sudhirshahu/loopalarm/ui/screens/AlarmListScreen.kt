@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -63,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import com.sudhirshahu.loopalarm.R
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
+import com.sudhirshahu.loopalarm.ui.components.NotePointsView
 import com.sudhirshahu.loopalarm.util.Fmt
 import kotlinx.coroutines.delay
 
@@ -312,10 +312,11 @@ internal fun AlarmCard(
                             )
                         }
                     }
-                    val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                    if (notes.isNotEmpty()) {
-                        Box(Modifier.padding(top = 10.dp, bottom = 2.dp).fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
-                        notes.forEach { note -> DetailRow(Icons.AutoMirrored.Outlined.StickyNote2, note, text) }
+                    if (a.notes.isNotBlank()) {
+                        Box(Modifier.padding(top = 10.dp, bottom = 6.dp).fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant))
+                        NotePointsView(
+                            a.notes, style = MaterialTheme.typography.bodyMedium, colour = text, markerColour = soft, spacing = 4,
+                        )
                     }
                 }
             }
