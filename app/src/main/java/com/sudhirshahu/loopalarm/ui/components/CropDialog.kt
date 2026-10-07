@@ -171,6 +171,53 @@ fun CropDialog(
                     icon = { Icon(Icons.Filled.Edit, null, Modifier.size(18.dp)) },
                 ) { Text("Draw with pen") }
             }
+            // Tool options at the top, under the switch: crop shapes, or the pen colours then sizes / Undo / Clear
+            if (tool == Tool.CROP) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
+                    CropShape.entries.forEach { s ->
+                        FilterChip(
+                            selected = shape == s,
+                            onClick = {
+                                shape = s
+                                crop = s.ratio?.let { centered(k(it)) } ?: Rect(0f, 0f, 1f, 1f)
+                            },
+                            label = { Text(s.label, color = Color.White) },
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PenColours.forEach { c ->
+                        Box(
+                            Modifier.size(30.dp).background(c, CircleShape)
+                                .border(if (c == penColour) 3.dp else 1.dp, if (c == penColour) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
+                                .clickable { penColour = c },
+                        )
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PenSizes.forEachIndexed { i, w ->
+                        FilterChip(
+                            selected = penSize == w, onClick = { penSize = w },
+                            label = { Text(listOf("Thin", "Medium", "Thick")[i], color = Color.White) },
+                        )
+                    }
+                    IconButton(onClick = { if (marks.isNotEmpty()) marks.removeAt(marks.lastIndex) }, enabled = marks.isNotEmpty()) {
+                        Icon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (marks.isNotEmpty()) Color.White else Color.Gray)
+                    }
+                    IconButton(onClick = { marks.clear() }, enabled = marks.isNotEmpty()) {
+                        Icon(Icons.Filled.Delete, "Clear drawing", tint = if (marks.isNotEmpty()) Color.White else Color.Gray)
+                    }
+                }
+            }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                 val density = LocalDensity.current
                 val boxW = with(density) { maxWidth.toPx() }
@@ -264,53 +311,6 @@ fun CropDialog(
                 }
             }
 
-            // Tool-specific controls
-            if (tool == Tool.CROP) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)) {
-                    CropShape.entries.forEach { s ->
-                        FilterChip(
-                            selected = shape == s,
-                            onClick = {
-                                shape = s
-                                crop = s.ratio?.let { centered(k(it)) } ?: Rect(0f, 0f, 1f, 1f)
-                            },
-                            label = { Text(s.label, color = Color.White) },
-                        )
-                    }
-                }
-            } else {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PenColours.forEach { c ->
-                        Box(
-                            Modifier.size(30.dp).background(c, CircleShape)
-                                .border(if (c == penColour) 3.dp else 1.dp, if (c == penColour) Color(0xFF8AB4F8) else Color.Gray, CircleShape)
-                                .clickable { penColour = c },
-                        )
-                    }
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PenSizes.forEachIndexed { i, w ->
-                        FilterChip(
-                            selected = penSize == w, onClick = { penSize = w },
-                            label = { Text(listOf("Thin", "Medium", "Thick")[i], color = Color.White) },
-                        )
-                    }
-                    IconButton(onClick = { if (marks.isNotEmpty()) marks.removeAt(marks.lastIndex) }, enabled = marks.isNotEmpty()) {
-                        Icon(Icons.AutoMirrored.Filled.Undo, "Undo", tint = if (marks.isNotEmpty()) Color.White else Color.Gray)
-                    }
-                    IconButton(onClick = { marks.clear() }, enabled = marks.isNotEmpty()) {
-                        Icon(Icons.Filled.Delete, "Clear drawing", tint = if (marks.isNotEmpty()) Color.White else Color.Gray)
-                    }
-                }
-            }
             Spacer(Modifier.height(8.dp))
         }
     }
