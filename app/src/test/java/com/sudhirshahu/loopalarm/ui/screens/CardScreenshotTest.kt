@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.sudhirshahu.loopalarm.data.Accent
 import com.sudhirshahu.loopalarm.data.Alarm
+import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.IntervalUnit
 import com.sudhirshahu.loopalarm.data.ThemeMode
 import com.sudhirshahu.loopalarm.ring.Ringing
@@ -81,6 +82,41 @@ class CardScreenshotTest {
 
     @Test fun detailsPage() = shoot("details-page", ThemeMode.LIGHT) {
         ReminderDetailsScreen(medicine, false, {}, {}, { _, _ -> }, {}, {}, {})
+    }
+
+    /** Two drawn sample pictures saved like real ones, so the page shows its picture section. */
+    private fun samplePictures(): List<String> {
+        val context = compose.activity
+        fun picture(w: Int, h: Int, draw: (Canvas, android.graphics.Paint) -> Unit): String {
+            val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+            draw(Canvas(bmp), android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG))
+            return ImageStore.saveCropped(context, bmp)!!
+        }
+        // A medicine box on a table
+        val box = picture(1080, 600) { c, p ->
+            c.drawColor(0xFFE3F2FD.toInt())
+            p.color = 0xFFBCAAA4.toInt(); c.drawRect(0f, 430f, 1080f, 600f, p)
+            p.color = 0xFFFFFFFF.toInt(); c.drawRoundRect(340f, 120f, 740f, 470f, 28f, 28f, p)
+            p.color = 0xFFE53935.toInt(); c.drawRect(505f, 190f, 575f, 400f, p); c.drawRect(435f, 260f, 645f, 330f, p)
+            p.color = 0xFF1E88E5.toInt(); p.textSize = 54f; c.drawText("Vitamin D", 430f, 455f, p)
+        }
+        // A glass of water
+        val glass = picture(1080, 600) { c, p ->
+            c.drawColor(0xFFFFF8E1.toInt())
+            p.color = 0xFFB3E5FC.toInt(); c.drawRect(420f, 220f, 660f, 520f, p)
+            p.style = android.graphics.Paint.Style.STROKE; p.strokeWidth = 10f; p.color = 0xFF607D8B.toInt()
+            c.drawRect(420f, 100f, 660f, 520f, p)
+        }
+        return listOf(box, glass)
+    }
+
+    @Test
+    @Config(qualifiers = "w411dp-h1900dp-xxhdpi")
+    fun detailsPageWithPictures() {
+        val withPictures = medicine.withImages(samplePictures())
+        shoot("details-page-full", ThemeMode.LIGHT) {
+            ReminderDetailsScreen(withPictures, false, {}, {}, { _, _ -> }, {}, {}, {})
+        }
     }
 
     @Test fun alarmScreen() = shoot("alarm-screen", ThemeMode.DARK) {
