@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -77,6 +78,7 @@ fun AlarmListScreen(
     onDuplicate: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit,
     onRingNow: (Alarm) -> Unit,
+    onOpen: (Alarm) -> Unit,
     onQuickAdd: () -> Unit,
     onOpenPermissions: () -> Unit,
 ) {
@@ -155,7 +157,7 @@ fun AlarmListScreen(
                 }
                 if (group.isEmpty() || group !in collapsed) {
                     items(members, key = { it.id }) { a ->
-                        AlarmCard(a, nextByAlarm[a.id], now, use24, onToggle, onEdit, onDuplicate, onDelete, onRingNow)
+                        AlarmCard(a, nextByAlarm[a.id], now, use24, onToggle, onEdit, onDuplicate, onDelete, onRingNow, onOpen)
                     }
                 }
             }
@@ -203,9 +205,22 @@ private val CardColours = listOf(
 private val NextRingColour = Color(0xFF00897B)
 private val NextRingColourDark = Color(0xFF4DB6AC)
 
+/** The reminder's own colour (card edge, icon circle, details page). */
+internal fun reminderColour(a: Alarm): Color = CardColours[(a.id % CardColours.size).toInt()]
+
+@Composable
+internal fun nextRingColour(): Color =
+    if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) NextRingColourDark else NextRingColour
+
+internal fun nextRingLabel(a: Alarm, next: Long?, now: Long, use24: Boolean): String = when {
+    next == null -> "No upcoming rings for this schedule"
+    a.snoozeUntil > now && a.snoozeUntil == next -> "Snoozed until ${Fmt.time(next, use24)}"
+    else -> "Rings ${Fmt.dateTime(next, use24)} (${Fmt.relative(next, now)})"
+}
+
 /** A plain detail line with a small grey icon. */
 @Composable
-private fun DetailRow(icon: ImageVector, text: String, colour: Color) {
+internal fun DetailRow(icon: ImageVector, text: String, colour: Color) {
     Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         Icon(icon, null, Modifier.size(16.dp), tint = colour)
         Text(text, style = MaterialTheme.typography.bodyMedium, color = colour, modifier = Modifier.padding(start = 8.dp))
@@ -227,15 +242,16 @@ internal fun AlarmCard(
     onDuplicate: (Alarm) -> Unit,
     onDelete: (Alarm) -> Unit,
     onRingNow: (Alarm) -> Unit,
+    onOpen: (Alarm) -> Unit = onEdit,
 ) {
     var menu by remember { mutableStateOf(false) }
     val alpha = if (a.enabled) 1f else 0.45f
-    val colour = CardColours[(a.id % CardColours.size).toInt()].copy(alpha = alpha)
+    val colour = reminderColour(a).copy(alpha = alpha)
     val text = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
     val soft = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
-    val nextColour = if (MaterialTheme.colorScheme.surface.luminance() < 0.5f) NextRingColourDark else NextRingColour
+    val nextColour = nextRingColour()
     Card(
-        Modifier.fillMaxWidth().clickable { onEdit(a) },
+        Modifier.fillMaxWidth().clickable { onOpen(a) },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -279,12 +295,11 @@ internal fun AlarmCard(
                     )
                     DetailRow(Icons.Outlined.Repeat, Fmt.summary(a, use24), soft)
                     DetailRow(Icons.Outlined.CalendarMonth, Fmt.schedule(a), soft)
+                    if (a.images.isNotEmpty()) {
+                        DetailRow(Icons.Outlined.Image, if (a.images.size == 1) "1 picture" else "${a.images.size} pictures", soft)
+                    }
                     if (a.enabled) {
-                        val label = when {
-                            next == null -> "No upcoming rings for this schedule"
-                            a.snoozeUntil > now && a.snoozeUntil == next -> "Snoozed until ${Fmt.time(next, use24)}"
-                            else -> "Rings ${Fmt.dateTime(next, use24)} (${Fmt.relative(next, now)})"
-                        }
+                        val label = nextRingLabel(a, next, now, use24)
                         Row(
                             Modifier.padding(top = 8.dp).clip(RoundedCornerShape(10.dp))
                                 .background(nextColour.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 5.dp),

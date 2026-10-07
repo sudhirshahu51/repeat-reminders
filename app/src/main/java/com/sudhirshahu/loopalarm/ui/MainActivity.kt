@@ -56,6 +56,7 @@ import com.sudhirshahu.loopalarm.ui.screens.BirthdaysScreen
 import com.sudhirshahu.loopalarm.ui.screens.HistoryScreen
 import com.sudhirshahu.loopalarm.ui.screens.PermissionsScreen
 import com.sudhirshahu.loopalarm.ui.screens.QuickAddSheet
+import com.sudhirshahu.loopalarm.ui.screens.ReminderDetailsScreen
 import com.sudhirshahu.loopalarm.ui.screens.SettingsScreen
 import com.sudhirshahu.loopalarm.ui.theme.LoopAlarmTheme
 import com.sudhirshahu.loopalarm.util.Fmt
@@ -171,6 +172,7 @@ private fun AppRoot(vm: AppViewModel, settings: AppSettings, sharedFile: Uri?, o
                     onDuplicate = { vm.duplicate(it) },
                     onDelete = { vm.delete(it) },
                     onRingNow = { vm.ringNow(it) },
+                    onOpen = { nav.navigate("details/${it.id}") },
                     onQuickAdd = { quickAdd = true },
                     onOpenPermissions = { nav.navigate("permissions") },
                 )
@@ -197,6 +199,22 @@ private fun AppRoot(vm: AppViewModel, settings: AppSettings, sharedFile: Uri?, o
             }
             composable("permissions") {
                 PermissionsScreen(onBack = { nav.popBackStack() }, onChanged = { permissionCheck++ })
+            }
+            composable("details/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
+                val id = entry.arguments?.getLong("id") ?: 0L
+                // From the live list, so edits and the on/off switch show up straight away.
+                val a = alarms.firstOrNull { it.id == id }
+                a?.let {
+                    ReminderDetailsScreen(
+                        it, use24,
+                        onBack = { nav.popBackStack() },
+                        onEdit = { r -> nav.navigate("edit/${r.id}") },
+                        onToggle = { r, on -> vm.setEnabled(r, on) },
+                        onRingNow = { r -> vm.ringNow(r) },
+                        onDuplicate = { r -> vm.duplicate(r); nav.popBackStack() },
+                        onDelete = { r -> vm.delete(r); nav.popBackStack() },
+                    )
+                }
             }
             composable("edit/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { entry ->
                 val id = entry.arguments?.getLong("id") ?: 0L

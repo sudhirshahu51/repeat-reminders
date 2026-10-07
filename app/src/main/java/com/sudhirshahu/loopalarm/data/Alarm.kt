@@ -65,7 +65,10 @@ data class Alarm(
     val soundTitle: String = "Classic beep",
     val showPostScreen: Boolean = true,
     val snoozeMinutes: Int = 5,
-    /** picture shown when the alarm rings; a file name in [ImageStore], empty for none */
+    /**
+     * pictures shown when the alarm rings: file names in [ImageStore] joined with '|' (see [images]); the first one
+     * also goes in the notification. Empty for none.
+     */
     @ColumnInfo(defaultValue = "") val imageFile: String = "",
 
     // Runtime state
@@ -80,4 +83,9 @@ data class Alarm(
     val dateSet: Set<String> get() = dates.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
     val displayName: String get() = name.ifBlank { "Alarm" }
+
+    /** The reminder's pictures in order; stored in [imageFile]. */
+    val images: List<String> get() = imageFile.split('|').map { it.trim() }.filter { it.isNotEmpty() }
+
+    fun withImages(names: List<String>): Alarm = copy(imageFile = names.filter { it.isNotBlank() }.joinToString("|"))
 }

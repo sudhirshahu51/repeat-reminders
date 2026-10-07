@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -155,7 +157,7 @@ fun AlarmEditScreen(
                     minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth(),
                 )
             }
-            PictureSection(a.imageFile) { a = a.copy(imageFile = it) }
+            PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {
                 SwitchRow(
                     if (a.repeating) "Repeat" else "Single alarm",
@@ -445,52 +447,66 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 /** Material date pickers report UTC midnight. */
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
 
+/** Most pictures one reminder can hold. */
+private const val MAX_PICTURES = 10
+
+/**
+ * Add, crop or remove the reminder's pictures. Tap a thumbnail to crop it again; the first picture also
+ * goes in the notification. Also used by Quick add, as a plain step ([inCard] false).
+ */
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
-/** Pick, crop or remove the reminder picture. Also used by Quick add, as a plain step ([inCard] false). */
-internal fun PictureSection(imageFile: String, title: String = "Picture", inCard: Boolean = true, onChange: (String) -> Unit) {
+internal fun PictureSection(images: List<String>, title: String = "Pictures", inCard: Boolean = true, onChange: (List<String>) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    // Picture waiting in the crop screen: a newly picked photo, or the current one when re-cropping.
+    // Picture waiting in the crop screen, and which entry it replaces (null: a new picture added at the end).
     var cropSource by remember { mutableStateOf<Bitmap?>(null) }
-    fun openCrop(load: () -> Bitmap?) {
+    var cropIndex by remember { mutableStateOf<Int?>(null) }
+    fun openCrop(index: Int?, load: () -> Bitmap?) {
         busy = true
         failed = false
         scope.launch {
             val bmp = withContext(Dispatchers.IO) { load() }
             busy = false
-            if (bmp != null) cropSource = bmp else failed = true
+            if (bmp != null) {
+                cropIndex = index
+                cropSource = bmp
+            } else {
+                failed = true
+            }
         }
     }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) openCrop { ImageStore.decodeUpright(context, uri) }
-    }
-    val bitmap by produceState<ImageBitmap?>(null, imageFile) {
-        value = withContext(Dispatchers.IO) { ImageStore.load(context, imageFile, 720)?.asImageBitmap() }
+        if (uri != null) openCrop(null) { ImageStore.decodeUpright(context, uri) }
     }
 
     val body: @Composable () -> Unit = {
-        bitmap?.let {
-            Image(
-                it, "Reminder picture", contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxWidth().heightIn(max = 240.dp).clip(RoundedCornerShape(12.dp)),
-            )
-        }
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(
-                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-                enabled = !busy,
-            ) { Text(if (busy) "Opening…" else if (imageFile.isBlank()) "Add picture" else "Change picture") }
-            if (imageFile.isNotBlank()) {
-                OutlinedButton(onClick = { openCrop { ImageStore.load(context, imageFile) } }, enabled = !busy) { Text("Crop") }
-                TextButton(onClick = { onChange("") }) { Text("Remove") }
+        if (images.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                images.forEachIndexed { i, name ->
+                    PictureThumb(
+                        name, first = i == 0,
+                        onClick = { if (!busy) openCrop(i) { ImageStore.load(context, name) } },
+                        onRemove = { onChange(images.filterIndexed { j, _ -> j != i }) },
+                    )
+                }
             }
+        }
+        OutlinedButton(
+            onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            enabled = !busy && images.size < MAX_PICTURES,
+        ) {
+            Icon(Icons.Filled.AddPhotoAlternate, null, Modifier.size(18.dp))
+            Text(if (busy) "  Opening…" else if (images.isEmpty()) "  Add picture" else "  Add another picture")
         }
         if (failed) Text("Couldn't open that picture. Try another one.", color = MaterialTheme.colorScheme.error)
         Text(
-            "Shown in the notification and on the alarm screen when this reminder rings. Wide pictures fit notifications best.",
+            if (images.isEmpty()) {
+                "Shown on the alarm screen when this reminder rings; the first one is also shown in the notification."
+            } else {
+                "Tap a picture to crop it. The first one is also shown in the notification. Up to $MAX_PICTURES pictures."
+            },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
@@ -504,6 +520,7 @@ internal fun PictureSection(imageFile: String, title: String = "Picture", inCard
     }
 
     cropSource?.let { src ->
+        val index = cropIndex
         CropDialog(
             src,
             onCancel = { cropSource = null },
@@ -513,10 +530,39 @@ internal fun PictureSection(imageFile: String, title: String = "Picture", inCard
                 scope.launch {
                     val name = withContext(Dispatchers.IO) { ImageStore.saveCropped(context, src, rect) }
                     busy = false
-                    if (name != null) onChange(name) else failed = true
+                    when {
+                        name == null -> failed = true
+                        index == null -> onChange(images + name)
+                        else -> onChange(images.mapIndexed { j, old -> if (j == index) name else old })
+                    }
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun PictureThumb(name: String, first: Boolean, onClick: () -> Unit, onRemove: () -> Unit) {
+    val context = LocalContext.current
+    val bitmap by produceState<ImageBitmap?>(null, name) {
+        value = withContext(Dispatchers.IO) { ImageStore.load(context, name, 320)?.asImageBitmap() }
+    }
+    Box(Modifier.size(104.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onClick)) {
+        bitmap?.let { Image(it, "Reminder picture", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+        if (first) {
+            Text(
+                "Notification", style = MaterialTheme.typography.labelSmall, color = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(4.dp).size(26.dp).clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.6f)).clickable(onClick = onRemove),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Close, "Remove picture", Modifier.size(16.dp), tint = Color.White)
+        }
     }
 }
 

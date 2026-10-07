@@ -26,11 +26,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,10 +42,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -56,16 +49,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sudhirshahu.loopalarm.R
 import com.sudhirshahu.loopalarm.app
+import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
-import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.ring.AlarmService
 import com.sudhirshahu.loopalarm.ring.Ringing
 import com.sudhirshahu.loopalarm.ring.RingingState
+import com.sudhirshahu.loopalarm.ui.screens.ReminderDetailsContent
 import com.sudhirshahu.loopalarm.ui.theme.LoopAlarmTheme
 import com.sudhirshahu.loopalarm.util.Fmt
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 /** The alarm screen with the full message, opened when an alarm rings (also over the lock screen). */
 class RingActivity : ComponentActivity() {
@@ -85,10 +77,14 @@ class RingActivity : ComponentActivity() {
             val ringing by RingingState.current.collectAsStateWithLifecycle()
             val r = ringing
             LaunchedEffect(r) { if (r == null) finish() }
+            // The ringing reminders themselves, for the full details page.
+            val alarms by produceState(emptyList<Alarm>(), r?.alarmIds) {
+                value = r?.alarmIds?.takeIf { it.isNotEmpty() }?.let { ids -> app.db.alarmDao().getMany(ids) }.orEmpty()
+            }
             LoopAlarmTheme(settings.themeMode, settings.accent) {
                 if (r != null) {
                     RingScreen(
-                        r, Fmt.is24h(this, settings.timeFormat),
+                        r, alarms, Fmt.is24h(this, settings.timeFormat),
                         onSnooze = { startService(AlarmService.actionIntent(this, AlarmService.ACTION_SNOOZE)); finish() },
                         onDismiss = { startService(AlarmService.actionIntent(this, AlarmService.ACTION_DISMISS)); finish() },
                     )
@@ -99,11 +95,12 @@ class RingActivity : ComponentActivity() {
 }
 
 /**
- * The alarm screen: the whole message in a scrollable area (time, name, schedule, every note, the picture),
- * with Snooze and Dismiss always visible at the bottom.
+ * The alarm screen: the same page as the reminder's details (see [ReminderDetailsContent]) for every reminder that is
+ * ringing, under the current time, with Snooze and Dismiss always visible at the bottom. [alarms] is empty while they
+ * load (or if they were deleted); the short message from [r] is shown then.
  */
 @Composable
-internal fun RingScreen(r: Ringing, use24: Boolean, onSnooze: () -> Unit, onDismiss: () -> Unit) {
+internal fun RingScreen(r: Ringing, alarms: List<Alarm>, use24: Boolean, onSnooze: () -> Unit, onDismiss: () -> Unit) {
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -111,56 +108,41 @@ internal fun RingScreen(r: Ringing, use24: Boolean, onSnooze: () -> Unit, onDism
             now = System.currentTimeMillis()
         }
     }
-    val context = LocalContext.current
-    val picture by produceState<ImageBitmap?>(null, r.imageFile) {
-        value = withContext(Dispatchers.IO) { ImageStore.load(context, r.imageFile)?.asImageBitmap() }
-    }
     val pulse by rememberInfiniteTransition(label = "pulse").animateFloat(
-        initialValue = 0.9f, targetValue = 1.15f,
+        initialValue = 0.92f, targetValue = 1.08f,
         animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "scale",
     )
-    val onColour = MaterialTheme.colorScheme.onPrimaryContainer
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.primaryContainer) {
-        Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 24.dp)) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
             Column(
-                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(top = 32.dp, bottom = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                val picture = picture
-                when {
-                    picture != null -> Unit // shown below the message
-                    r.icon.isNotBlank() -> Text(r.icon, fontSize = 72.sp, modifier = Modifier.scale(pulse))
-                    else -> Image(painterResource(R.drawable.ic_bell_badge), null, Modifier.size(84.dp).scale(pulse))
-                }
-                Text(Fmt.time(now, use24), fontSize = 64.sp, color = onColour)
-                Text(r.names, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, color = onColour)
-                Text(r.subtitle, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
-                    color = onColour.copy(alpha = 0.8f))
-                val notes = r.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
-                if (notes.isNotEmpty()) {
-                    Column(
-                        Modifier.padding(top = 20.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp))
-                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)).padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        notes.forEach { note ->
-                            Row {
-                                Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.padding(top = 2.dp).size(20.dp),
-                                    tint = MaterialTheme.colorScheme.primary)
-                                Text(note, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(start = 12.dp))
-                            }
-                        }
+                // Ringing banner with the live time
+                Column(
+                    Modifier.padding(top = 16.dp).fillMaxWidth().clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer).padding(vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(painterResource(R.drawable.ic_bell_badge), null, Modifier.size(28.dp).scale(pulse))
+                        Text("  Ringing now", style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer)
                     }
+                    Text(Fmt.time(now, use24), fontSize = 60.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
-                if (picture != null) {
-                    Image(
-                        picture, "Reminder picture", contentScale = ContentScale.FillWidth,
-                        modifier = Modifier.padding(top = 20.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)),
-                    )
+                if (alarms.isEmpty()) {
+                    Text(r.names, style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Text(r.subtitle, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    if (r.notes.isNotEmpty()) {
+                        Text(r.notes, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    }
+                } else {
+                    alarms.forEach { a -> ReminderDetailsContent(a, use24, ringing = true) }
                 }
+                Spacer(Modifier.height(4.dp))
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 24.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 FilledTonalButton(onClick = onSnooze, modifier = Modifier.weight(1f).height(64.dp)) {
                     Text("Snooze ${r.snoozeMinutes} min", style = MaterialTheme.typography.titleMedium)
                 }

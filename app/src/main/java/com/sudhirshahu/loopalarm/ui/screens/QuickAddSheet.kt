@@ -74,7 +74,7 @@ fun QuickAddSheet(
             Text("4. Days", style = MaterialTheme.typography.labelLarge)
             WeekDayChips(alarm.daysOfWeek) { alarm = alarm.copy(daysOfWeek = it) }
 
-            PictureSection(alarm.imageFile, title = "5. Picture (optional)", inCard = false) { alarm = alarm.copy(imageFile = it) }
+            PictureSection(alarm.images, title = "5. Pictures (optional)", inCard = false) { alarm = alarm.withImages(it) }
 
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(vertical = 12.dp)) {
                 OutlinedButton(onClick = { onMoreOptions(alarm) }, modifier = Modifier.weight(1f)) { Text("More options") }

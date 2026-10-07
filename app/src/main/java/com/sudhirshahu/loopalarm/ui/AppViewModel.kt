@@ -45,7 +45,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Removes pictures no alarm uses any more (replaced, deleted, or picked in an editor that was not saved). */
     private fun cleanupImages() {
-        app.appScope.launch(Dispatchers.IO) { ImageStore.cleanup(app, alarmDao.getAll().map { it.imageFile }.toSet()) }
+        app.appScope.launch(Dispatchers.IO) { ImageStore.cleanup(app, alarmDao.getAll().flatMap { it.images }.toSet()) }
     }
 
     suspend fun load(id: Long): Alarm? = alarmDao.get(id)

@@ -53,6 +53,8 @@ data class Ringing(
     val imageFile: String = "",
     val icon: String = "",
     val notes: String = "",
+    /** the reminders ringing; the alarm screen loads them to show their full details */
+    val alarmIds: List<Long> = emptyList(),
 )
 
 object RingingState {
@@ -140,9 +142,9 @@ class AlarmService : Service() {
             return
         }
 
-        // With several alarms ringing together, show the first one that has a picture.
+        // With several alarms ringing together, the notification shows the first picture of the first one that has any.
         // Loaded before the session starts so a Dismiss can't arrive between the session and the sound.
-        val imageFile = alarms.firstOrNull { it.imageFile.isNotBlank() }?.imageFile.orEmpty()
+        val imageFile = alarms.firstNotNullOfOrNull { it.images.firstOrNull() }.orEmpty()
         val picture = withContext(Dispatchers.IO) { ImageStore.load(this@AlarmService, imageFile) }
 
         val historyIds = alarms.map {
@@ -155,7 +157,7 @@ class AlarmService : Service() {
         val subtitle = Fmt.summary(primary, use24)
         val icon = primary.icon.ifBlank { alarms.firstOrNull { it.icon.isNotBlank() }?.icon.orEmpty() }
         val notes = alarms.map { it.notes.trim() }.filter { it.isNotEmpty() }.joinToString("\n")
-        val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes)
+        val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes, alarms.map { it.id })
         RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly

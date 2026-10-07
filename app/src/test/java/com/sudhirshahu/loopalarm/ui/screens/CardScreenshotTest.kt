@@ -73,13 +73,20 @@ class CardScreenshotTest {
 
     @Test fun cardsDark() = shoot("cards-dark", ThemeMode.DARK) { Cards() }
 
+    private val medicine = Alarm(
+        id = 2, name = "Medicine", intervalValue = 30, startMinute = 21 * 60, groupName = "Health",
+        notes = "Take after dinner\nOne tablet with a full glass of water\nRefill the box on Sunday",
+        soundTitle = "Classic beep", snoozeMinutes = 10,
+    )
+
+    @Test fun detailsPage() = shoot("details-page", ThemeMode.LIGHT) {
+        ReminderDetailsScreen(medicine, false, {}, {}, { _, _ -> }, {}, {}, {})
+    }
+
     @Test fun alarmScreen() = shoot("alarm-screen", ThemeMode.DARK) {
         RingScreen(
-            Ringing(
-                names = "Medicine", firedAt = now, snoozeMinutes = 5, subtitle = "Every 30 min · from 9:00 PM until midnight",
-                notes = "Take after dinner\nOne tablet with a full glass of water\nRefill the box on Sunday",
-            ),
-            use24 = false, onSnooze = {}, onDismiss = {},
+            Ringing(names = "Medicine", firedAt = now, snoozeMinutes = 10, subtitle = "", alarmIds = listOf(2)),
+            listOf(medicine), use24 = false, onSnooze = {}, onDismiss = {},
         )
     }
 }

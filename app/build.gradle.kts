@@ -15,8 +15,8 @@ android {
         applicationId = "com.sudhirshahu.loopalarm"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.4.5"
+        versionCode = 14
+        versionName = "1.5.0"
     }
 
     // Upload key for Google Play. keystore.properties and the .jks file stay on this machine only.
