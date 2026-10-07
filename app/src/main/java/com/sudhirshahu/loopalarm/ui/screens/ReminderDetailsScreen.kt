@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.StickyNote2
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -65,8 +64,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
- * Everything about one reminder: bell or emoji, time, name, group, schedule, next ring, notes, every picture and how
- * it rings. Shared by the details page (tap a card) and the alarm screen, so a ringing reminder looks the same.
+ * Everything about one reminder: bell or emoji and start time, then the title and notes across the full width,
+ * schedule, group, next ring, every picture and how it rings. Shared by the details page (tap a card) and the alarm screen, so a ringing reminder looks the same.
  * Not scrollable itself; the caller scrolls it.
  *
  * [ringing] drops the parts that make no sense while it rings (next ring, on / off state).
@@ -85,18 +84,26 @@ internal fun ReminderDetailsContent(a: Alarm, use24: Boolean, ringing: Boolean =
     val colour = reminderColour(a)
     val soft = MaterialTheme.colorScheme.onSurfaceVariant
     Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        // Hero: bell or emoji, start time and name
+        // Top: bell (or emoji) and the start time, as on the reminder card
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(64.dp).clip(CircleShape).background(colour.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                if (a.icon.isBlank()) Image(painterResource(R.drawable.ic_bell_badge), null, Modifier.size(40.dp))
-                else Text(a.icon, fontSize = 34.sp)
+            Box(Modifier.size(56.dp).clip(CircleShape).background(colour.copy(alpha = 0.16f)), contentAlignment = Alignment.Center) {
+                if (a.icon.isBlank()) Image(painterResource(R.drawable.ic_bell_badge), null, Modifier.size(36.dp))
+                else Text(a.icon, fontSize = 30.sp)
             }
-            Column(Modifier.padding(start = 16.dp)) {
-                Text(a.displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Text(
-                    if (a.repeating) "Starts at ${Fmt.minuteOfDay(a.startMinute, use24)}" else "At ${Fmt.minuteOfDay(a.startMinute, use24)}",
-                    style = MaterialTheme.typography.titleMedium, color = colour,
-                )
+            Text(
+                Fmt.minuteOfDay(a.startMinute, use24),
+                style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(start = 14.dp),
+            )
+        }
+
+        // Below, the full width for the title and the description (the notes)
+        Column(Modifier.fillMaxWidth()) {
+            Text(a.displayName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
+            notes.forEach { note ->
+                Text(note, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(top = 8.dp))
             }
         }
 
@@ -119,19 +126,6 @@ internal fun ReminderDetailsContent(a: Alarm, use24: Boolean, ringing: Boolean =
                     }
                 } else {
                     Text("Turned off", style = MaterialTheme.typography.bodyMedium, color = soft, modifier = Modifier.padding(top = 4.dp))
-                }
-            }
-        }
-
-        val notes = a.notes.lines().map { it.trim() }.filter { it.isNotEmpty() }
-        if (notes.isNotEmpty()) {
-            DetailsCard("Notes") {
-                notes.forEach { note ->
-                    Row(Modifier.padding(top = 4.dp)) {
-                        Icon(Icons.AutoMirrored.Outlined.StickyNote2, null, Modifier.padding(top = 2.dp).size(20.dp),
-                            tint = MaterialTheme.colorScheme.primary)
-                        Text(note, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp))
-                    }
                 }
             }
         }

@@ -80,6 +80,15 @@ object Notifications {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    /** Opens the app on this reminder's details page. */
+    fun reminderIntent(context: Context, alarmId: Long): PendingIntent = PendingIntent.getActivity(
+        context, 100 + (alarmId % 10_000).toInt(),
+        Intent(context, MainActivity::class.java)
+            .putExtra(MainActivity.EXTRA_OPEN_ALARM, alarmId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     fun showNext(context: Context, next: AlarmScheduler.Next, settings: AppSettings) {
         if (!settings.showNextAlarmNotification) {
             cancelNext(context)
@@ -109,6 +118,7 @@ object Notifications {
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setContentIntent(mainActivityIntent(context))
+            .apply { next.alarmIds.firstOrNull()?.let { setContentIntent(reminderIntent(context, it)) } }
             .addAction(0, "Skip this one", skip)
             .build()
         post(context, ID_NEXT, n)
@@ -128,7 +138,7 @@ object Notifications {
             .setAutoCancel(true)
             .setSilent(true)
             .setGroup(GROUP_LOG)
-            .setContentIntent(mainActivityIntent(context))
+            .setContentIntent(reminderIntent(context, alarmId))
             .build()
         val id = ID_LOG_BASE + (alarmId % 10_000).toInt()
         post(context, id, n)

@@ -68,10 +68,16 @@ class MainActivity : ComponentActivity() {
     /** A .ics or .vcf file shared to the app or opened with it, waiting for the birthday import screen. */
     private val sharedFile = mutableStateOf<Uri?>(null)
 
+    /** A reminder whose page should open, from a tapped notification. */
+    private val openAlarm = mutableStateOf<Long?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        if (savedInstanceState == null) sharedFile.value = importUri(intent)
+        if (savedInstanceState == null) {
+            sharedFile.value = importUri(intent)
+            openAlarm.value = alarmToOpen(intent)
+        }
         if (Build.VERSION.SDK_INT >= 33 && savedInstanceState == null) {
             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -82,7 +88,7 @@ class MainActivity : ComponentActivity() {
             if (s == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                LoopAlarmTheme(s.themeMode, s.accent) { AppRoot(vm, s, sharedFile.value) { sharedFile.value = null } }
+                LoopAlarmTheme(s.themeMode, s.accent) { AppRoot(vm, s, sharedFile.value, { sharedFile.value = null }, openAlarm.value) { openAlarm.value = null } }
             }
         }
     }
@@ -90,6 +96,13 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         importUri(intent)?.let { sharedFile.value = it }
+        alarmToOpen(intent)?.let { openAlarm.value = it }
+    }
+
+    private fun alarmToOpen(i: Intent?): Long? = i?.getLongExtra(EXTRA_OPEN_ALARM, 0L)?.takeIf { it > 0 }
+
+    companion object {
+        const val EXTRA_OPEN_ALARM = "open_alarm"
     }
 
     private fun importUri(i: Intent?): Uri? = when (i?.action) {
@@ -107,7 +120,14 @@ private val tabs = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun AppRoot(vm: AppViewModel, settings: AppSettings, sharedFile: Uri?, onSharedFileHandled: () -> Unit) {
+private fun AppRoot(
+    vm: AppViewModel,
+    settings: AppSettings,
+    sharedFile: Uri?,
+    onSharedFileHandled: () -> Unit,
+    openAlarm: Long?,
+    onOpenAlarmHandled: () -> Unit,
+) {
     val context = LocalContext.current
     val nav = rememberNavController()
     val alarms by vm.alarms.collectAsStateWithLifecycle()
@@ -131,6 +151,12 @@ private fun AppRoot(vm: AppViewModel, settings: AppSettings, sharedFile: Uri?, o
     val topLevel = tabs.firstOrNull { it.first == route }
 
     LaunchedEffect(sharedFile) { if (sharedFile != null && route != "birthdays") nav.navigate("birthdays") }
+    LaunchedEffect(openAlarm) {
+        if (openAlarm != null) {
+            nav.navigate("details/$openAlarm") { launchSingleTop = true }
+            onOpenAlarmHandled()
+        }
+    }
 
     fun openTab(r: String) = nav.navigate(r) {
         popUpTo("alarms") { saveState = true }

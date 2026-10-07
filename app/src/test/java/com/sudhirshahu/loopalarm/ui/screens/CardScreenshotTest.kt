@@ -119,6 +119,42 @@ class CardScreenshotTest {
         }
     }
 
+    /** The picture editor in Draw mode with a circle and an arrow marked on a sample photo. */
+    @Test
+    fun pictureEditor() {
+        val bmp = Bitmap.createBitmap(1080, 720, Bitmap.Config.ARGB_8888)
+        Canvas(bmp).apply {
+            drawColor(0xFFE3F2FD.toInt())
+            val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG)
+            p.color = 0xFFBCAAA4.toInt(); drawRect(0f, 520f, 1080f, 720f, p)
+            p.color = 0xFFFFFFFF.toInt(); drawRoundRect(340f, 170f, 740f, 560f, 28f, 28f, p)
+            p.color = 0xFFE53935.toInt(); drawRect(505f, 240f, 575f, 460f, p); drawRect(435f, 315f, 645f, 385f, p)
+        }
+        val circle = (0..40).map { i ->
+            val t = i / 40.0 * 2 * Math.PI
+            androidx.compose.ui.geometry.Offset((0.5 + 0.24 * Math.cos(t)).toFloat(), (0.5 + 0.34 * Math.sin(t)).toFloat())
+        }
+        val arrow = listOf(0.08f to 0.12f, 0.2f to 0.2f, 0.3f to 0.3f).map { androidx.compose.ui.geometry.Offset(it.first, it.second) }
+        val head = listOf(0.22f to 0.3f, 0.3f to 0.3f, 0.3f to 0.2f).map { androidx.compose.ui.geometry.Offset(it.first, it.second) }
+        val marks = listOf(
+            com.sudhirshahu.loopalarm.ui.components.Mark(circle, androidx.compose.ui.graphics.Color(0xFFFFCA28), 0.012f),
+            com.sudhirshahu.loopalarm.ui.components.Mark(arrow, androidx.compose.ui.graphics.Color(0xFFE53935), 0.012f),
+            com.sudhirshahu.loopalarm.ui.components.Mark(head, androidx.compose.ui.graphics.Color(0xFFE53935), 0.012f),
+        )
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            LoopAlarmTheme(ThemeMode.DARK, Accent.INDIGO) {
+                com.sudhirshahu.loopalarm.ui.components.CropDialog(bmp, {}, { _, _ -> }, startDrawing = true, initialMarks = marks)
+            }
+        }
+        compose.mainClock.advanceTimeBy(500)
+        // The editor is a dialog: draw its own window.
+        val view = org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView
+        val out = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        view.draw(Canvas(out))
+        File(File("build/screenshots").apply { mkdirs() }, "picture-editor.png").outputStream().use { out.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     @Test fun alarmScreen() = shoot("alarm-screen", ThemeMode.DARK) {
         RingScreen(
             Ringing(names = "Medicine", firedAt = now, snoozeMinutes = 10, subtitle = "", alarmIds = listOf(2)),

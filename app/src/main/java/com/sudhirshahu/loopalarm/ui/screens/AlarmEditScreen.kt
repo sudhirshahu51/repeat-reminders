@@ -74,6 +74,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -99,6 +100,7 @@ import com.sudhirshahu.loopalarm.ring.SoundPlayer
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
 import com.sudhirshahu.loopalarm.ui.components.CropDialog
 import com.sudhirshahu.loopalarm.ui.components.IntervalPicker
+import com.sudhirshahu.loopalarm.ui.components.applyMarks
 import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
 import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
 import com.sudhirshahu.loopalarm.util.Fmt
@@ -477,8 +479,27 @@ internal fun PictureSection(images: List<String>, title: String = "Pictures", in
             }
         }
     }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) openCrop(null) { ImageStore.decodeUpright(context, uri) }
+    // The list as it is when a background save finishes, not when it started.
+    val latest by rememberUpdatedState(images)
+    // Pick several at once. One picture opens the editor; several are added as they are (tap one to edit it).
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_PICTURES)) { uris ->
+        val room = (MAX_PICTURES - latest.size).coerceAtLeast(0)
+        val picked = uris.take(room)
+        when {
+            picked.size == 1 -> openCrop(null) { ImageStore.decodeUpright(context, picked[0]) }
+            picked.size > 1 -> {
+                busy = true
+                failed = false
+                scope.launch {
+                    val names = withContext(Dispatchers.IO) {
+                        picked.mapNotNull { uri -> ImageStore.decodeUpright(context, uri)?.let { ImageStore.saveCropped(context, it) } }
+                    }
+                    busy = false
+                    if (names.size < picked.size) failed = true
+                    if (names.isNotEmpty()) onChange(latest + names)
+                }
+            }
+        }
     }
 
     val body: @Composable () -> Unit = {
@@ -498,14 +519,14 @@ internal fun PictureSection(images: List<String>, title: String = "Pictures", in
             enabled = !busy && images.size < MAX_PICTURES,
         ) {
             Icon(Icons.Filled.AddPhotoAlternate, null, Modifier.size(18.dp))
-            Text(if (busy) "  Opening…" else if (images.isEmpty()) "  Add picture" else "  Add another picture")
+            Text(if (busy) "  Opening…" else if (images.isEmpty()) "  Add Pictures" else "  Add More Pictures")
         }
-        if (failed) Text("Couldn't open that picture. Try another one.", color = MaterialTheme.colorScheme.error)
+        if (failed) Text("Couldn't open a picture. Try another one.", color = MaterialTheme.colorScheme.error)
         Text(
             if (images.isEmpty()) {
-                "Shown on the alarm screen when this reminder rings; the first one is also shown in the notification."
+                "Pick one or several. Shown on the alarm screen when this reminder rings; the first one is also shown in the notification."
             } else {
-                "Tap a picture to crop it. The first one is also shown in the notification. Up to $MAX_PICTURES pictures."
+                "Tap a picture to crop it or draw on it. The first one is also shown in the notification. Up to $MAX_PICTURES pictures."
             },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -524,16 +545,16 @@ internal fun PictureSection(images: List<String>, title: String = "Pictures", in
         CropDialog(
             src,
             onCancel = { cropSource = null },
-            onDone = { rect ->
+            onDone = { rect, marks ->
                 cropSource = null
                 busy = true
                 scope.launch {
-                    val name = withContext(Dispatchers.IO) { ImageStore.saveCropped(context, src, rect) }
+                    val name = withContext(Dispatchers.IO) { ImageStore.saveCropped(context, applyMarks(src, marks), rect) }
                     busy = false
                     when {
                         name == null -> failed = true
-                        index == null -> onChange(images + name)
-                        else -> onChange(images.mapIndexed { j, old -> if (j == index) name else old })
+                        index == null -> onChange(latest + name)
+                        else -> onChange(latest.mapIndexed { j, old -> if (j == index) name else old })
                     }
                 }
             },

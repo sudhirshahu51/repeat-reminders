@@ -71,6 +71,8 @@ class RingActivity : ComponentActivity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
         }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Opened from the notification while the small pop-up shows: the pop-up would cover this screen.
+        runCatching { startService(AlarmService.actionIntent(this, AlarmService.ACTION_HIDE_POPUP)) }
         enableEdgeToEdge()
         setContent {
             val settings by app.settings.settings.collectAsStateWithLifecycle(AppSettings())

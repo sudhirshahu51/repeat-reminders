@@ -93,6 +93,10 @@ class AlarmService : Service() {
             }
             ACTION_DISMISS -> scope.launch { finish(Outcome.DISMISSED) }
             ACTION_SNOOZE -> scope.launch { finish(Outcome.SNOOZED) }
+            ACTION_HIDE_POPUP -> {
+                popup.hide() // the alarm screen was opened from the notification
+                if (session == null) stopSelf()
+            }
             else -> if (session == null) stopSelf()
         }
         return START_NOT_STICKY
@@ -283,7 +287,8 @@ class AlarmService : Service() {
             .setSilent(true)
             .setWhen(firedAt)
             .setShowWhen(true)
-            .setContentIntent(if (fullScreen) screen else Notifications.mainActivityIntent(this))
+            // Tapping it always opens the alarm screen: the reminder's page with Snooze and Dismiss.
+            .setContentIntent(screen)
             .apply { if (fullScreen) setFullScreenIntent(screen, true) }
             .apply {
                 if (picture != null) {
@@ -353,6 +358,7 @@ class AlarmService : Service() {
         const val ACTION_FIRE = "com.sudhirshahu.loopalarm.RING"
         const val ACTION_DISMISS = "com.sudhirshahu.loopalarm.DISMISS"
         const val ACTION_SNOOZE = "com.sudhirshahu.loopalarm.SNOOZE"
+        const val ACTION_HIDE_POPUP = "com.sudhirshahu.loopalarm.HIDE_POPUP"
         const val EXTRA_IDS = "ids"
         const val EXTRA_TIME = "time"
 
