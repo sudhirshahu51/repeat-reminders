@@ -1,13 +1,17 @@
 package com.sudhirshahu.loopalarm.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -81,20 +86,36 @@ fun NotePointsView(
                         Modifier.size(22.dp).then(if (toggle != null) Modifier.clickable(onClick = toggle) else Modifier),
                         tint = markerColour,
                     )
+                } else if (parsed.style == NotePoints.Style.BULLETS) {
+                    BulletDot(style, markerColour)
                 } else {
                     Text(
                         NotePoints.marker(parsed.style, i, p.checked), style = style, color = markerColour,
-                        fontWeight = FontWeight.Bold, modifier = Modifier.width(if (parsed.style == NotePoints.Style.NUMBERS) 28.dp else 12.dp),
+                        fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp),
                     )
                 }
                 Text(
                     p.text, style = style,
                     color = if (p.checked) colour.copy(alpha = 0.55f) else colour,
                     textDecoration = if (p.checked) TextDecoration.LineThrough else null,
-                    modifier = Modifier.padding(start = if (parsed.style == NotePoints.Style.BULLETS) 4.dp else 8.dp),
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
         }
+    }
+}
+
+/**
+ * A round bullet sized to the text (the "•" character is tiny at these sizes), centred on the first line so it
+ * lines up with the text when a point wraps.
+ */
+@Composable
+private fun BulletDot(style: TextStyle, colour: Color) {
+    val density = LocalDensity.current
+    val line = with(density) { (if (style.lineHeight.isSp) style.lineHeight else style.fontSize * 1.4f).toDp() }
+    val dot = with(density) { (style.fontSize * 0.42f).toDp() }
+    Box(Modifier.width(18.dp).height(line), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(dot).background(colour, CircleShape))
     }
 }
 
@@ -155,11 +176,13 @@ fun NotesEditor(notes: String, onChange: (String) -> Unit) {
                         Modifier.size(24.dp).clickable { point.checked = !point.checked; publish() },
                         tint = MaterialTheme.colorScheme.primary,
                     )
+                } else if (style == NotePoints.Style.BULLETS) {
+                    BulletDot(MaterialTheme.typography.bodyLarge, MaterialTheme.colorScheme.primary)
                 } else {
                     Text(
                         NotePoints.marker(style, index, false), style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(if (style == NotePoints.Style.NUMBERS) 28.dp else 18.dp),
+                        modifier = Modifier.width(28.dp),
                     )
                 }
                 Column(Modifier.weight(1f).padding(start = 8.dp)) {
