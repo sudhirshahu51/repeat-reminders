@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -27,6 +29,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -148,6 +153,23 @@ fun CropDialog(
                 TextButton(onClick = onCancel) { Text("Cancel", color = Color.White) }
                 Text("Edit picture", color = Color.White, modifier = Modifier.weight(1f).padding(start = 8.dp))
                 Button(onClick = { onDone(floatArrayOf(crop.left, crop.top, crop.right, crop.bottom), marks.toList()) }) { Text("Use") }
+            }
+            // Crop / Draw (pencil) switch, at the top where it is easy to find
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                val colours = SegmentedButtonDefaults.colors(
+                    activeContainerColor = Color(0xFF8AB4F8), activeContentColor = Color.Black,
+                    inactiveContainerColor = Color.Black, inactiveContentColor = Color.White,
+                )
+                SegmentedButton(
+                    selected = tool == Tool.CROP, onClick = { tool = Tool.CROP }, colors = colours,
+                    shape = SegmentedButtonDefaults.itemShape(0, 2),
+                    icon = { Icon(Icons.Filled.Crop, null, Modifier.size(18.dp)) },
+                ) { Text("Crop") }
+                SegmentedButton(
+                    selected = tool == Tool.DRAW, onClick = { tool = Tool.DRAW }, colors = colours,
+                    shape = SegmentedButtonDefaults.itemShape(1, 2),
+                    icon = { Icon(Icons.Filled.Edit, null, Modifier.size(18.dp)) },
+                ) { Text("Draw with pen") }
             }
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                 val density = LocalDensity.current
@@ -289,18 +311,7 @@ fun CropDialog(
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-                FilterChip(
-                    selected = tool == Tool.CROP, onClick = { tool = Tool.CROP },
-                    leadingIcon = { Icon(Icons.Filled.Crop, null, tint = Color.White) },
-                    label = { Text("Crop", color = Color.White) },
-                )
-                FilterChip(
-                    selected = tool == Tool.DRAW, onClick = { tool = Tool.DRAW },
-                    leadingIcon = { Icon(Icons.Filled.Edit, null, tint = Color.White) },
-                    label = { Text("Draw", color = Color.White) },
-                )
-            }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

@@ -2,6 +2,7 @@ package com.sudhirshahu.loopalarm.ui.screens
 
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.RingtoneManager
 import android.net.Uri
@@ -39,6 +40,8 @@ import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
@@ -74,8 +77,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +93,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.EndMode
@@ -100,18 +105,19 @@ import com.sudhirshahu.loopalarm.ring.SoundPlayer
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
 import com.sudhirshahu.loopalarm.ui.components.CropDialog
 import com.sudhirshahu.loopalarm.ui.components.IntervalPicker
-import com.sudhirshahu.loopalarm.ui.components.applyMarks
 import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
 import com.sudhirshahu.loopalarm.ui.components.WeekDayChips
+import com.sudhirshahu.loopalarm.ui.components.applyMarks
 import com.sudhirshahu.loopalarm.util.Fmt
 import com.sudhirshahu.loopalarm.util.ReminderIcons
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneOffset
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -457,6 +463,7 @@ private const val MAX_PICTURES = 10
  * goes in the notification. Also used by Quick add, as a plain step ([inCard] false).
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun PictureSection(images: List<String>, title: String = "Pictures", inCard: Boolean = true, onChange: (List<String>) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -502,31 +509,61 @@ internal fun PictureSection(images: List<String>, title: String = "Pictures", in
         }
     }
 
+    // Take Photo: the camera app saves into a cache file we share through the FileProvider, then it opens in the editor.
+    // The path survives the activity being recreated while the camera is open.
+    var cameraFile by rememberSaveable { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+        val path = cameraFile ?: return@rememberLauncherForActivityResult
+        cameraFile = null
+        val file = File(path)
+        if (saved) {
+            openCrop(null) { ImageStore.decodeUpright(context, Uri.fromFile(file)).also { file.delete() } }
+        } else {
+            file.delete()
+        }
+    }
+    val hasCamera = remember { context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY) }
+    fun takePhoto() {
+        val file = File(File(context.cacheDir, "camera").apply { mkdirs() }, "photo-${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        cameraFile = file.path
+        runCatching { camera.launch(uri) }.onFailure { cameraFile = null; failed = true }
+    }
+
     val body: @Composable () -> Unit = {
         if (images.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 images.forEachIndexed { i, name ->
                     PictureThumb(
                         name, first = i == 0,
-                        onClick = { if (!busy) openCrop(i) { ImageStore.load(context, name) } },
+                        onEdit = { if (!busy) openCrop(i) { ImageStore.load(context, name) } },
                         onRemove = { onChange(images.filterIndexed { j, _ -> j != i }) },
                     )
                 }
             }
         }
-        OutlinedButton(
-            onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            enabled = !busy && images.size < MAX_PICTURES,
-        ) {
-            Icon(Icons.Filled.AddPhotoAlternate, null, Modifier.size(18.dp))
-            Text(if (busy) "  Opening…" else if (images.isEmpty()) "  Add Pictures" else "  Add More Pictures")
+        val canAdd = !busy && images.size < MAX_PICTURES
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                enabled = canAdd,
+            ) {
+                Icon(Icons.Filled.AddPhotoAlternate, null, Modifier.size(18.dp))
+                Text(if (busy) "  Opening…" else if (images.isEmpty()) "  Add Pictures" else "  Add More Pictures")
+            }
+            if (hasCamera) {
+                OutlinedButton(onClick = { takePhoto() }, enabled = canAdd) {
+                    Icon(Icons.Filled.PhotoCamera, null, Modifier.size(18.dp))
+                    Text("  Take Photo")
+                }
+            }
         }
         if (failed) Text("Couldn't open a picture. Try another one.", color = MaterialTheme.colorScheme.error)
         Text(
             if (images.isEmpty()) {
-                "Pick one or several. Shown on the alarm screen when this reminder rings; the first one is also shown in the notification."
+                "Pick one or several, or take a photo. Shown on the alarm screen when this reminder rings; the first one is also shown in the notification."
             } else {
-                "Tap a picture to crop it or draw on it. The first one is also shown in the notification. Up to $MAX_PICTURES pictures."
+                "Tap ✏ on a picture to crop it or draw on it. The first one is also shown in the notification. Up to $MAX_PICTURES pictures."
             },
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -562,13 +599,14 @@ internal fun PictureSection(images: List<String>, title: String = "Pictures", in
     }
 }
 
+/** A picture in the editor: tap it or its pencil to crop / draw on it, ✕ to remove it. */
 @Composable
-private fun PictureThumb(name: String, first: Boolean, onClick: () -> Unit, onRemove: () -> Unit) {
+private fun PictureThumb(name: String, first: Boolean, onEdit: () -> Unit, onRemove: () -> Unit) {
     val context = LocalContext.current
     val bitmap by produceState<ImageBitmap?>(null, name) {
         value = withContext(Dispatchers.IO) { ImageStore.load(context, name, 320)?.asImageBitmap() }
     }
-    Box(Modifier.size(104.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onClick)) {
+    Box(Modifier.size(104.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant).clickable(onClick = onEdit)) {
         bitmap?.let { Image(it, "Reminder picture", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
         if (first) {
             Text(
@@ -583,6 +621,13 @@ private fun PictureThumb(name: String, first: Boolean, onClick: () -> Unit, onRe
             contentAlignment = Alignment.Center,
         ) {
             Icon(Icons.Filled.Close, "Remove picture", Modifier.size(16.dp), tint = Color.White)
+        }
+        Box(
+            Modifier.align(Alignment.TopStart).padding(4.dp).size(30.dp).clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary).clickable(onClick = onEdit),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Edit, "Crop or draw on picture", Modifier.size(17.dp), tint = MaterialTheme.colorScheme.onPrimary)
         }
     }
 }

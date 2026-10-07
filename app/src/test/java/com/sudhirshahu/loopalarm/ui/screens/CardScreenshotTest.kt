@@ -119,6 +119,19 @@ class CardScreenshotTest {
         }
     }
 
+    /** The Pictures section of the editor: thumbnails with their pencil and ✕, Add Pictures and Take Photo. */
+    @Test
+    fun picturesSection() {
+        org.robolectric.Shadows.shadowOf(compose.activity.packageManager)
+            .setSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY, true)
+        val names = samplePictures()
+        shoot("pictures-section", ThemeMode.LIGHT) {
+            Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) {
+                PictureSection(names) {}
+            }
+        }
+    }
+
     /** The picture editor in Draw mode with a circle and an arrow marked on a sample photo. */
     @Test
     fun pictureEditor() {
