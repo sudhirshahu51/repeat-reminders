@@ -27,6 +27,8 @@ Everything runs on the phone, so no server or account is needed.
 | - | Groups: list sections with one switch for the whole group | Editor, *Name*; Alarms list |
 | - | Pop-up card over other apps while the phone is in use | Settings, *Notifications*; `ring/PopupOverlay.kt` |
 | - | Home-screen icon: Auto background (black in light mode, white in dark mode) or a colour, notebook page in the accent colour (activity aliases) | Settings, *App icon* |
+| - | "Pick people to call": when the reminder rings, 3 to 10 random people from your call log, kept on its page with Call buttons (needs call log access; **restricted on Google Play**, see `store/PLAY_STORE.md`) | Editor, *Call someone* |
+| - | First-launch questions and Settings, *How new reminders ring*: volume (starts at 25%), gradual increase (on, over 5 seconds) and how long each ring lasts | First launch, Settings |
 | - | Birthday import from phone calendars or .ics / .vcf files (Google Contacts export, other apps), as yearly reminders | Cake button on the Alarms tab |
 
 ### About YouTube Music and other streaming apps

@@ -114,6 +114,14 @@ fun SettingsScreen(
             }
         }
 
+        Group("How new reminders ring") {
+            Text(
+                "The starting values for each new reminder. Reminders you already have keep their own.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SoundDefaultsSection(settings, onChange)
+        }
+
         Group("Notifications") {
             Toggle("Show next alarm in the notification bar", "Ongoing notification with a countdown and a Skip button",
                 settings.showNextAlarmNotification) { v -> onChange { it.copy(showNextAlarmNotification = v) } }

@@ -70,7 +70,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Adds many reminders at once (birthday import). */
     fun addAll(list: List<Alarm>, onDone: () -> Unit = {}) = viewModelScope.launch {
-        list.forEach { alarmDao.upsert(it) }
+        val settings = app.settings.current()
+        list.forEach { alarmDao.upsert(settings.newAlarm(it)) } // birthdays ring the way the user prefers
         reschedule()
         onDone()
     }

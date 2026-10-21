@@ -36,13 +36,14 @@ import java.time.LocalTime
 @Composable
 fun QuickAddSheet(
     use24: Boolean,
+    base: Alarm = Alarm(),
     onDismiss: () -> Unit,
     onSave: (Alarm) -> Unit,
     onMoreOptions: (Alarm) -> Unit,
 ) {
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val nowMinute = LocalTime.now().let { it.hour * 60 + it.minute + 1 } % 1440
-    var alarm by remember { mutableStateOf(Alarm(startMinute = nowMinute, scheduleMode = ScheduleMode.WEEK_DAYS)) }
+    var alarm by remember { mutableStateOf(base.copy(startMinute = nowMinute, scheduleMode = ScheduleMode.WEEK_DAYS)) }
     var pickTime by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet) {

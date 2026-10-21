@@ -25,6 +25,10 @@ data class Alarm(
     @ColumnInfo(defaultValue = "") val icon: String = "",
     /** reminders with the same group name are listed together; empty means ungrouped */
     @ColumnInfo(defaultValue = "") val groupName: String = "",
+    /** when it rings, suggest this many random people from the call log to call; 0 = off (see [CallPicks]) */
+    @ColumnInfo(defaultValue = "0") val callPicks: Int = 0,
+    /** the people picked the last time it rang, one "name<TAB>number" per line; shown on its page with Call buttons */
+    @ColumnInfo(defaultValue = "") val callList: String = "",
     /** free-text notes, shown on the card and when the reminder rings */
     @ColumnInfo(defaultValue = "") val notes: String = "",
 
@@ -56,9 +60,9 @@ data class Alarm(
 
     // Ringing behaviour
     val ringDurationSec: Int = 30,
-    val gradualVolume: Boolean = false,
-    val gradualSec: Int = 20,
-    val volumePercent: Int = 80,
+    val gradualVolume: Boolean = true,
+    val gradualSec: Int = 5,
+    val volumePercent: Int = 25,
     val vibrate: Boolean = true,
     val soundType: SoundType = SoundType.BEEP,
     val soundValue: String = "classic",
@@ -86,6 +90,9 @@ data class Alarm(
 
     /** The reminder's pictures in order; stored in [imageFile]. */
     val images: List<String> get() = imageFile.split('|').map { it.trim() }.filter { it.isNotEmpty() }
+
+    /** The people to call picked the last time it rang; see [callPicks]. */
+    val calls: List<CallPick> get() = CallPicks.decode(callList)
 
     fun withImages(names: List<String>): Alarm = copy(imageFile = names.filter { it.isNotBlank() }.joinToString("|"))
 }

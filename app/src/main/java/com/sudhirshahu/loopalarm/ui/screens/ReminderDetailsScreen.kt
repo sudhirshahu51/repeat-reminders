@@ -1,5 +1,7 @@
 package com.sudhirshahu.loopalarm.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -16,10 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -55,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sudhirshahu.loopalarm.R
 import com.sudhirshahu.loopalarm.data.Alarm
+import com.sudhirshahu.loopalarm.data.CallPicks
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.schedule.ScheduleCalculator
@@ -134,6 +139,8 @@ internal fun ReminderDetailsContent(
             }
         }
 
+        if (a.callPicks > 0) CallListCard(a)
+
         a.images.forEach { name -> DetailsPicture(name) }
 
         DetailsCard("When it rings") {
@@ -145,6 +152,7 @@ internal fun ReminderDetailsContent(
             InfoRow("Rings for", Fmt.duration(a.ringDurationSec))
             InfoRow("Snooze", "${a.snoozeMinutes} min")
             InfoRow("Alarm screen", if (a.showPostScreen) "Opens when it rings" else "Notification only")
+            if (a.callPicks > 0) InfoRow("Call someone", "${a.callPicks} random people from your call log")
         }
     }
 }
@@ -159,6 +167,41 @@ private fun DetailsCard(title: String, content: @Composable () -> Unit) {
             Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(bottom = 4.dp))
             content()
+        }
+    }
+}
+
+/** The people picked from the call log the last time this reminder rang, each with a button that opens the dialer. */
+@Composable
+private fun CallListCard(a: Alarm) {
+    val context = LocalContext.current
+    val people = a.calls
+    DetailsCard("People to call") {
+        when {
+            people.isNotEmpty() -> people.forEach { p ->
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.Person, null, Modifier.size(24.dp), tint = MaterialTheme.colorScheme.primary)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(p.name, style = MaterialTheme.typography.titleMedium)
+                        if (p.hasName) Text(p.number, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    FilledTonalButton(onClick = {
+                        // The dialer opens with the number filled in; nothing is dialed until you press call there.
+                        runCatching { context.startActivity(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", p.number, null))) }
+                    }) {
+                        Icon(Icons.Filled.Call, null, Modifier.size(18.dp))
+                        Text("Call", modifier = Modifier.padding(start = 6.dp))
+                    }
+                }
+            }
+            !CallPicks.hasPermission(context) -> Text(
+                "Call log access is off, so there is nobody to suggest. Allow it for this app in the phone's settings.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error,
+            )
+            else -> Text(
+                "${a.callPicks} random people from your recent calls will appear here the next time this reminder rings.",
+                style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -30,6 +30,9 @@ interface AlarmDao {
     @Query("UPDATE alarms SET enabled = :enabled, snoozeUntil = 0, skipUntil = 0 WHERE id = :id")
     suspend fun setEnabled(id: Long, enabled: Boolean)
 
+    @Query("UPDATE alarms SET callList = :list WHERE id = :id")
+    suspend fun setCallList(id: Long, list: String)
+
     @Query("UPDATE alarms SET enabled = :enabled, snoozeUntil = 0, skipUntil = 0 WHERE groupName = :group")
     suspend fun setGroupEnabled(group: String, enabled: Boolean)
 

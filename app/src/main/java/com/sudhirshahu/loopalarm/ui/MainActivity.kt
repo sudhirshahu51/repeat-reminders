@@ -53,6 +53,7 @@ import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.ui.screens.AlarmEditScreen
 import com.sudhirshahu.loopalarm.ui.screens.AlarmListScreen
 import com.sudhirshahu.loopalarm.ui.screens.BirthdaysScreen
+import com.sudhirshahu.loopalarm.ui.screens.FirstRunSetup
 import com.sudhirshahu.loopalarm.ui.screens.HistoryScreen
 import com.sudhirshahu.loopalarm.ui.screens.PermissionsScreen
 import com.sudhirshahu.loopalarm.ui.screens.QuickAddSheet
@@ -88,7 +89,14 @@ class MainActivity : ComponentActivity() {
             if (s == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             } else {
-                LoopAlarmTheme(s.themeMode, s.accent) { AppRoot(vm, s, sharedFile.value, { sharedFile.value = null }, openAlarm.value) { openAlarm.value = null } }
+                LoopAlarmTheme(s.themeMode, s.accent) {
+                    if (!s.setupDone) {
+                        // First launch: ask how reminders should ring before anything else.
+                        FirstRunSetup(s, onChange = { vm.updateSettings(it) }, onDone = { vm.updateSettings { it.copy(setupDone = true) } })
+                    } else {
+                        AppRoot(vm, s, sharedFile.value, { sharedFile.value = null }, openAlarm.value) { openAlarm.value = null }
+                    }
+                }
             }
         }
     }
@@ -247,8 +255,8 @@ private fun AppRoot(
                 val id = entry.arguments?.getLong("id") ?: 0L
                 val initial by produceState<Alarm?>(null, id) {
                     value = when (id) {
-                        DRAFT_ID -> draft ?: Alarm()
-                        0L -> Alarm()
+                        DRAFT_ID -> draft ?: settings.newAlarm()
+                        0L -> settings.newAlarm()
                         else -> vm.load(id) ?: Alarm()
                     }
                 }
@@ -269,6 +277,7 @@ private fun AppRoot(
     if (quickAdd) {
         QuickAddSheet(
             use24 = use24,
+            base = settings.newAlarm(),
             onDismiss = { quickAdd = false },
             onSave = { vm.save(it); quickAdd = false },
             onMoreOptions = { draft = it; quickAdd = false; nav.navigate("edit/$DRAFT_ID") },

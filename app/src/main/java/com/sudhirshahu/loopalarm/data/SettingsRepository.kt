@@ -3,6 +3,7 @@ package com.sudhirshahu.loopalarm.data
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -58,7 +59,19 @@ data class AppSettings(
      */
     val popupOverApps: Boolean = false,
     val appIcon: AppIcon = AppIcon.DEFAULT,
-)
+    /** the first-launch questions have been answered (or skipped) */
+    val setupDone: Boolean = false,
+    // How new reminders ring, chosen at first launch and changeable in Settings. Existing reminders keep their own.
+    val defaultVolumePercent: Int = 25,
+    val defaultGradual: Boolean = true,
+    val defaultGradualSec: Int = 5,
+    val defaultRingSec: Int = 30,
+) {
+    /** A new reminder (from [base]) that rings the way the user prefers. */
+    fun newAlarm(base: Alarm = Alarm()): Alarm = base.copy(
+        volumePercent = defaultVolumePercent, gradualVolume = defaultGradual, gradualSec = defaultGradualSec, ringDurationSec = defaultRingSec,
+    )
+}
 
 private val Context.dataStore by preferencesDataStore("settings")
 
@@ -74,6 +87,11 @@ class SettingsRepository(private val context: Context) {
         // New key in 1.4.5: the old "popup_over_apps" was saved as on for most people, and the default is now off.
         val popup = booleanPreferencesKey("popup_over_apps_v2")
         val appIcon = stringPreferencesKey("app_icon")
+        val setupDone = booleanPreferencesKey("setup_done")
+        val defVolume = intPreferencesKey("default_volume")
+        val defGradual = booleanPreferencesKey("default_gradual")
+        val defGradualSec = intPreferencesKey("default_gradual_sec")
+        val defRingSec = intPreferencesKey("default_ring_sec")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { it.toSettings() }
@@ -92,6 +110,11 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.overrideDnd] = s.overrideDnd
             prefs[Keys.popup] = s.popupOverApps
             prefs[Keys.appIcon] = s.appIcon.name
+            prefs[Keys.setupDone] = s.setupDone
+            prefs[Keys.defVolume] = s.defaultVolumePercent
+            prefs[Keys.defGradual] = s.defaultGradual
+            prefs[Keys.defGradualSec] = s.defaultGradualSec
+            prefs[Keys.defRingSec] = s.defaultRingSec
         }
     }
 
@@ -107,6 +130,11 @@ class SettingsRepository(private val context: Context) {
             overrideDnd = this[Keys.overrideDnd] ?: d.overrideDnd,
             popupOverApps = this[Keys.popup] ?: d.popupOverApps,
             appIcon = enumOr(this[Keys.appIcon], d.appIcon),
+            setupDone = this[Keys.setupDone] ?: d.setupDone,
+            defaultVolumePercent = this[Keys.defVolume] ?: d.defaultVolumePercent,
+            defaultGradual = this[Keys.defGradual] ?: d.defaultGradual,
+            defaultGradualSec = this[Keys.defGradualSec] ?: d.defaultGradualSec,
+            defaultRingSec = this[Keys.defRingSec] ?: d.defaultRingSec,
         )
     }
 

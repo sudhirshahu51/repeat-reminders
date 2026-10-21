@@ -96,6 +96,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
 import com.sudhirshahu.loopalarm.data.Alarm
+import com.sudhirshahu.loopalarm.data.CallPicks
 import com.sudhirshahu.loopalarm.data.EndMode
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.ScheduleMode
@@ -164,6 +165,8 @@ fun AlarmEditScreen(
             Section("Notes") {
                 NotesEditor(a.notes) { a = a.copy(notes = it) }
             }
+            // Switching it off also forgets the people picked last time (the privacy policy says so).
+            CallPicksSection(a.callPicks) { a = a.copy(callPicks = it, callList = if (it == 0) "" else a.callList) }
             PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {
                 SwitchRow(
@@ -453,6 +456,50 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 
 /** Material date pickers report UTC midnight. */
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
+
+/**
+ * "Pick people to call": when the reminder rings, a few random people from the call log are suggested with a Call
+ * button. Needs the call log permission, asked here when the switch is turned on. [count] 0 means off.
+ */
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+internal fun CallPicksSection(count: Int, onChange: (Int) -> Unit) {
+    val context = LocalContext.current
+    val latest by rememberUpdatedState(onChange)
+    var denied by remember { mutableStateOf(false) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        denied = !granted
+        if (granted) latest(CallPicks.DEFAULT_COUNT)
+    }
+    Section("Call someone") {
+        SwitchRow(
+            "Pick people to call",
+            "When it rings, suggests ${if (count > 0) "$count" else "a few"} random people from your recent calls, " +
+                "with a Call button. Read on your phone only; nothing is saved or sent.",
+            count > 0,
+        ) { on ->
+            when {
+                !on -> latest(0)
+                CallPicks.hasPermission(context) -> latest(CallPicks.DEFAULT_COUNT)
+                else -> ask.launch(android.Manifest.permission.READ_CALL_LOG)
+            }
+        }
+        if (count > 0) {
+            Text("How many people", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CallPicks.COUNTS.forEach { n ->
+                    FilterChip(selected = count == n, onClick = { latest(n) }, label = { Text("$n") })
+                }
+            }
+        }
+        if (denied) {
+            Text(
+                "Call log access was not allowed, so there is nobody to suggest. You can allow it in the phone's app settings.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
 
 /** Most pictures one reminder can hold. */
 private const val MAX_PICTURES = 10

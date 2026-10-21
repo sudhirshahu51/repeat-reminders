@@ -25,6 +25,7 @@ import com.sudhirshahu.loopalarm.app
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
+import com.sudhirshahu.loopalarm.data.CallPicks
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.NotePoints
@@ -151,6 +152,19 @@ class AlarmService : Service() {
         // Loaded before the session starts so a Dismiss can't arrive between the session and the sound.
         val imageFile = alarms.firstNotNullOfOrNull { it.images.firstOrNull() }.orEmpty()
         val picture = withContext(Dispatchers.IO) { ImageStore.load(this@AlarmService, imageFile) }
+        // "Call someone" reminders: new random people from the call log each time it rings, kept on the reminder so
+        // they can still be called from its page after the ring ends. Saved before the alarm screen loads them.
+        val callPicks = withContext(Dispatchers.IO) {
+            val wanted = alarms.filter { it.callPicks > 0 }
+            if (wanted.isEmpty() || !CallPicks.hasPermission(this@AlarmService)) {
+                emptyList()
+            } else {
+                val recent = CallPicks.recent(this@AlarmService)
+                wanted.flatMap { a ->
+                    CallPicks.pick(recent, a.callPicks).also { dao.setCallList(a.id, CallPicks.encode(it)) }
+                }.distinct()
+            }
+        }
 
         val historyIds = alarms.map {
             history.insert(HistoryEntry(alarmId = it.id, alarmName = it.displayName, scheduledAt = scheduledAt, firedAt = now))
@@ -164,12 +178,14 @@ class AlarmService : Service() {
         // With their bullets / numbers / checkboxes, for the notification and the pop-up.
         val notes = alarms.flatMap { NotePoints.displayLines(it.notes) }.joinToString("\n")
         val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes, alarms.map { it.id })
+        // The notification lists the people to call too, as plain lines (the Call buttons are on the reminder's page).
+        val noteLines = listOf(notes) + callPicks.map { "📞 ${if (it.hasName) "${it.name} · ${it.number}" else it.number}" }
         RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly
         // While the phone is in use, a compact card over the current app replaces the full alarm screen.
         val usePopup = showScreen && settings.popupOverApps && isPhoneInUse() && popup.canShow()
-        goForeground(ringingNotification(primary, names, icon, notes, now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
+        goForeground(ringingNotification(primary, names, icon, noteLines.filter { it.isNotEmpty() }.joinToString("\n"), now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
         if (usePopup) {
             popup.show(
                 ringing, picture?.asImageBitmap(), settings, Fmt.time(now, use24),

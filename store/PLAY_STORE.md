@@ -106,6 +106,10 @@ The app has no INTERNET permission, so nothing can leave the device. Android bac
 
 The optional calendar permission (birthday import) and reminder pictures are read and stored on the device only. Under Play's rules, data processed only on the device is not "collected", so the answer stays **No**.
 
+### Call log permission: read before submitting to Play
+
+"Pick people to call" (1.8.0) uses `READ_CALL_LOG`, which Google Play treats as a **restricted permission**. Apps that are not the default phone or SMS app are normally refused it, and an app that declares it without an approved exception can be rejected. This is fine for the GitHub APK. Before the Play Store closed test, either remove the permission and the feature for the Play build (delete the `READ_CALL_LOG` line in `AndroidManifest.xml` and the "Call someone" section in `AlarmEditScreen.kt`; the rest of the app works without it) or submit the Permissions Declaration Form and accept that it may be refused.
+
 ### Permission declarations
 
 Play Console asks about these after you upload the bundle.
