@@ -44,7 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        /** 6: where "remind me of people" takes them from (0 = contacts, 1 = call log). */
+        /** 6: unused "remind me of people" source column (kept so databases from the 1.8.1 build still open). */
         private val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE alarms ADD COLUMN peopleFrom INTEGER NOT NULL DEFAULT 0")

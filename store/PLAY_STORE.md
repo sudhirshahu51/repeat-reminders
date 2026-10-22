@@ -106,9 +106,9 @@ The app has no INTERNET permission, so nothing can leave the device. Android bac
 
 The optional calendar permission (birthday import) and reminder pictures are read and stored on the device only. Under Play's rules, data processed only on the device is not "collected", so the answer stays **No**.
 
-### Contacts and call log permissions: read before submitting to Play
+### Contacts permission
 
-"Remind me of random people" (1.8.1) reads the contacts (`READ_CONTACTS`) or, as a choice, the call log (`READ_CALL_LOG`). Google Play treats `READ_CALL_LOG` as a **restricted permission**: apps that are not the default phone or SMS app are normally refused it, and an app that declares it without an approved exception can be rejected. Contacts access is allowed but must be declared and explained. Everything is fine for the GitHub APK. Before the Play Store closed test, remove the call log option (delete the `READ_CALL_LOG` line in `AndroidManifest.xml` and the `CALL_LOG` entry of `PeopleSource` in `PeoplePicks.kt`; keep the stored order, so make it the last entry or leave a placeholder) and keep contacts; or submit the Permissions Declaration Form for both. The picked people are read and kept on the device only, so the data safety answer stays **No** for collection.
+"Remind me of random people" (1.8.2) reads the contacts (`READ_CONTACTS`), only after the user switches it on for a reminder. Play allows this permission for apps that need it, but it counts as sensitive: declare it in the Permissions form and describe it as optional and used on the device only. The picked people are read and kept on the device only, so the data safety answer stays **No** for collection. The app does not use the restricted call log permission.
 
 ### Permission declarations
 

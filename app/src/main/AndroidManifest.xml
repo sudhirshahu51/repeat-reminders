@@ -19,9 +19,8 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Optional: asked only when the user imports birthdays from calendars on the phone. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
-    <!-- Optional: asked only when "Remind me of people" is switched on for a reminder (contacts or call log). Read on the phone, never sent. -->
+    <!-- Optional: asked only when "Remind me of people" is switched on for a reminder. Read on the phone, never sent. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
 
     <application
         android:name=".LoopAlarmApp"

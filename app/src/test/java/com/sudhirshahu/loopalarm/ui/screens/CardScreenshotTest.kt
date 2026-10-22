@@ -195,7 +195,7 @@ class CardScreenshotTest {
     /** The "Remind me of people" section of the editor, switched on. */
     @Test fun peopleSection() = shoot("people-section", ThemeMode.LIGHT) {
         Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) {
-            PeoplePicksSection(5, com.sudhirshahu.loopalarm.data.PeopleSource.CONTACTS) { _, _ -> }
+            PeoplePicksSection(5) {}
         }
     }
 

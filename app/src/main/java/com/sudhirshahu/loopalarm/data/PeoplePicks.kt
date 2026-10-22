@@ -1,11 +1,8 @@
 package com.sudhirshahu.loopalarm.data
 
 import android.Manifest
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Bundle
-import android.provider.CallLog
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import androidx.core.content.ContextCompat
 import kotlin.random.Random
@@ -15,40 +12,32 @@ data class Person(val name: String, val number: String) {
     val hasName: Boolean get() = name != number
 }
 
-/** Where "remind me of people" takes its people from. The order is stored in [Alarm.peopleFrom]; only append. */
-enum class PeopleSource(val label: String, val permission: String) {
-    CONTACTS("Contacts", Manifest.permission.READ_CONTACTS),
-    CALL_LOG("Call log", Manifest.permission.READ_CALL_LOG),
-}
-
 /**
- * "Remind me of people": when the reminder rings, a few random people from the phone's contacts (or recent call log)
- * are shown, as a nudge to get in touch. Reads on the phone only (the permission is asked when the option is switched
- * on); the picks are kept on the reminder so they can still be seen on its page after the ring has ended.
+ * "Remind me of people": when the reminder rings, a few random people from the phone's contacts are shown, as a nudge
+ * to get in touch. Reads the contacts on the phone only (the permission is asked when the option is switched on); the
+ * picks are kept on the reminder so they can still be seen on its page after the ring has ended.
  */
 object PeoplePicks {
     const val DEFAULT_COUNT = 5
     val COUNTS = listOf(3, 5, 7, 10)
 
-    /** How many recent call log entries are looked at; plenty for a mix of people without reading a huge log. */
-    private const val CALL_LOG_ROWS = 300
+    const val PERMISSION = Manifest.permission.READ_CONTACTS
+
     private const val CONTACT_ROWS = 20_000
+
+    /** A real number has at least 3 digits. */
+    private const val MIN_DIGITS = 3
 
     private const val SEP = '\u0009' // tab between name and number
     private const val EOL = '\n'
 
-    fun hasPermission(context: Context, source: PeopleSource): Boolean =
-        ContextCompat.checkSelfPermission(context, source.permission) == PackageManager.PERMISSION_GRANTED
+    fun hasPermission(context: Context): Boolean =
+        ContextCompat.checkSelfPermission(context, PERMISSION) == PackageManager.PERMISSION_GRANTED
 
-    /** Everyone available from [source], or empty without permission. Call off the main thread. */
-    fun all(context: Context, source: PeopleSource): List<Person> {
-        if (!hasPermission(context, source)) return emptyList()
-        return runCatching {
-            when (source) {
-                PeopleSource.CONTACTS -> fromContacts(context)
-                PeopleSource.CALL_LOG -> fromCallLog(context)
-            }
-        }.getOrDefault(emptyList())
+    /** Everyone in the contacts who has a number; empty without permission. Call off the main thread. */
+    fun all(context: Context): List<Person> {
+        if (!hasPermission(context)) return emptyList()
+        return runCatching { fromContacts(context) }.getOrDefault(emptyList())
     }
 
     /** One entry per contact that has a phone number, preferring the mobile number. */
@@ -73,25 +62,10 @@ object PeoplePicks {
         return distinctPeople(byContact.values.toList())
     }
 
-    /** Distinct people from the recent log, newest first. */
-    private fun fromCallLog(context: Context): List<Person> {
-        val rows = mutableListOf<Person>()
-        val query = Bundle().apply {
-            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, "${CallLog.Calls.DATE} DESC")
-            putInt(ContentResolver.QUERY_ARG_LIMIT, CALL_LOG_ROWS)
-        }
-        context.contentResolver.query(
-            CallLog.Calls.CONTENT_URI, arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME), query, null,
-        )?.use { c ->
-            while (c.moveToNext()) rows += Person(name = c.getString(1).orEmpty(), number = c.getString(0).orEmpty())
-        }
-        return distinctPeople(rows)
-    }
-
-    /** A real number has at least 3 digits; hidden callers are logged as "", "-1" or "-2" on many phones. */
-    private const val MIN_DIGITS = 3
-
-    /** Same number written differently (+91 98…, 098…) counts once; hidden or blank numbers are dropped. */
+    /**
+     * Drops entries without a real number and entries for a number that is already listed (the same number written
+     * differently, +91 98…, 098…, counts once); a saved name wins over a bare number.
+     */
     fun distinctPeople(rows: List<Person>): List<Person> {
         val byKey = LinkedHashMap<String, Person>()
         for (row in rows) {
@@ -100,7 +74,6 @@ object PeoplePicks {
             if (key.length < MIN_DIGITS) continue
             val name = row.name.trim().ifEmpty { number }
             val known = byKey[key]
-            // Keep the newest entry's number, but prefer a saved name from any entry.
             if (known == null) byKey[key] = Person(name, number)
             else if (!known.hasName && name != number) byKey[key] = Person(name, known.number)
         }

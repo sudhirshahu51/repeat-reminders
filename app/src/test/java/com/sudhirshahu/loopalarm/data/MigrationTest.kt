@@ -45,7 +45,7 @@ class MigrationTest {
                 val a = alarms.single()
                 assertEquals("version $version: new settings start off", 0, a.peopleCount)
                 assertEquals("version $version", "", a.peopleList)
-                assertEquals("version $version", PeopleSource.CONTACTS, a.source)
+                assertEquals("version $version", 0, a.peopleFrom)
             } finally {
                 db.close()
             }

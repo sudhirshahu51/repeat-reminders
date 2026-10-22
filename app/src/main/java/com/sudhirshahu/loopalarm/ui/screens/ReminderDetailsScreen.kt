@@ -149,7 +149,7 @@ internal fun ReminderDetailsContent(
             InfoRow("Rings for", Fmt.duration(a.ringDurationSec))
             InfoRow("Snooze", "${a.snoozeMinutes} min")
             InfoRow("Alarm screen", if (a.showPostScreen) "Opens when it rings" else "Notification only")
-            if (a.peopleCount > 0) InfoRow("Remind me of", "${a.peopleCount} random people from your ${a.source.label.lowercase()}")
+            if (a.peopleCount > 0) InfoRow("Remind me of", "${a.peopleCount} random people from your contacts")
         }
     }
 }
@@ -184,12 +184,12 @@ private fun PeopleCard(a: Alarm) {
                     }
                 }
             }
-            !PeoplePicks.hasPermission(context, a.source) -> Text(
-                "Access to your ${a.source.label.lowercase()} is off, so there is nobody to show. Allow it for this app in the phone's settings.",
+            !PeoplePicks.hasPermission(context) -> Text(
+                "Access to your contacts is off, so there is nobody to show. Allow it for this app in the phone's settings.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error,
             )
             else -> Text(
-                "${a.peopleCount} random people from your ${a.source.label.lowercase()} will appear here the next time this reminder rings.",
+                "${a.peopleCount} random people from your contacts will appear here the next time this reminder rings.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

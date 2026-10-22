@@ -25,7 +25,6 @@ import com.sudhirshahu.loopalarm.app
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
-import com.sudhirshahu.loopalarm.data.PeopleSource
 import com.sudhirshahu.loopalarm.data.PeoplePicks
 import com.sudhirshahu.loopalarm.data.Person
 import com.sudhirshahu.loopalarm.data.HistoryEntry
@@ -154,14 +153,15 @@ class AlarmService : Service() {
         // Loaded before the session starts so a Dismiss can't arrive between the session and the sound.
         val imageFile = alarms.firstNotNullOfOrNull { it.images.firstOrNull() }.orEmpty()
         val picture = withContext(Dispatchers.IO) { ImageStore.load(this@AlarmService, imageFile) }
-        // "Remind me of people" reminders: new random people from their contacts (or call log) each time it rings, kept
-        // on the reminder so they can still be seen on its page after the ring ends. Saved before the alarm screen loads them.
+        // "Remind me of people" reminders: new random people from the contacts each time it rings, kept on the reminder
+        // so they can still be seen on its page after the ring ends. Saved before the alarm screen loads them.
         val picked = withContext(Dispatchers.IO) {
-            val pool = HashMap<PeopleSource, List<Person>>() // each source is read once, even for several reminders
-            alarms.filter { it.peopleCount > 0 }.flatMap { a ->
-                val everyone = pool.getOrPut(a.source) { PeoplePicks.all(this@AlarmService, a.source) }
-                // Without permission (or an empty list) the reminder keeps whoever it picked last time.
-                if (everyone.isEmpty()) emptyList() else PeoplePicks.pick(everyone, a.peopleCount).also { dao.setPeopleList(a.id, PeoplePicks.encode(it)) }
+            val wanted = alarms.filter { it.peopleCount > 0 }
+            // The contacts are read once, even for several reminders. Without permission (or an empty list) a reminder
+            // keeps whoever it picked last time.
+            val everyone = if (wanted.isEmpty()) emptyList() else PeoplePicks.all(this@AlarmService)
+            if (everyone.isEmpty()) emptyList() else wanted.flatMap { a ->
+                PeoplePicks.pick(everyone, a.peopleCount).also { dao.setPeopleList(a.id, PeoplePicks.encode(it)) }
             }.distinct()
         }
 

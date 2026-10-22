@@ -32,7 +32,7 @@ data class Alarm(
     @ColumnInfo(name = "callPicks", defaultValue = "0") val peopleCount: Int = 0,
     /** the people picked the last time it rang, one "name<TAB>number" per line; shown on its page */
     @ColumnInfo(name = "callList", defaultValue = "") val peopleList: String = "",
-    /** where the people come from: index into [PeopleSource] */
+    /** unused: the 1.8.1 build had a contacts / call log choice; the column stays so its databases still open */
     @ColumnInfo(defaultValue = "0") val peopleFrom: Int = 0,
     /** free-text notes, shown on the card and when the reminder rings */
     @ColumnInfo(defaultValue = "") val notes: String = "",
@@ -98,8 +98,6 @@ data class Alarm(
 
     /** The people picked the last time it rang; see [peopleCount]. */
     val people: List<Person> get() = PeoplePicks.decode(peopleList)
-
-    val source: PeopleSource get() = PeopleSource.entries.getOrElse(peopleFrom) { PeopleSource.CONTACTS }
 
     fun withImages(names: List<String>): Alarm = copy(imageFile = names.filter { it.isNotBlank() }.joinToString("|"))
 }

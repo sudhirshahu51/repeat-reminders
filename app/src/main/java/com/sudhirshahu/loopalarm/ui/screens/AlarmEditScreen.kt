@@ -99,7 +99,6 @@ import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.EndMode
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.PeoplePicks
-import com.sudhirshahu.loopalarm.data.PeopleSource
 import com.sudhirshahu.loopalarm.data.ScheduleMode
 import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.ring.BeepSynth
@@ -167,9 +166,7 @@ fun AlarmEditScreen(
                 NotesEditor(a.notes) { a = a.copy(notes = it) }
             }
             // Switching it off also forgets the people picked last time (the privacy policy says so).
-            PeoplePicksSection(a.peopleCount, a.source) { n, src ->
-                a = a.copy(peopleCount = n, peopleFrom = src.ordinal, peopleList = if (n == 0 || src != a.source) "" else a.peopleList)
-            }
+            PeoplePicksSection(a.peopleCount) { n -> a = a.copy(peopleCount = n, peopleList = if (n == 0) "" else a.peopleList) }
             PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {
                 SwitchRow(
@@ -461,55 +458,44 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
 
 /**
- * "Remind me of people": when the reminder rings, a few random people from the contacts (or the call log) are shown.
- * Needs the matching permission, asked here when the switch is turned on or the source is changed. [count] 0 means off.
+ * "Remind me of people": when the reminder rings, a few random people from the contacts are shown.
+ * Needs the contacts permission, asked here when the switch is turned on. [count] 0 means off.
  */
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-internal fun PeoplePicksSection(count: Int, source: PeopleSource, onChange: (Int, PeopleSource) -> Unit) {
+internal fun PeoplePicksSection(count: Int, onChange: (Int) -> Unit) {
     val context = LocalContext.current
     val latest by rememberUpdatedState(onChange)
     var denied by remember { mutableStateOf(false) }
-    // What to apply once the permission for its source has been granted.
-    var pending by remember { mutableStateOf(count to source) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted
-        if (granted) latest(pending.first, pending.second)
-    }
-    fun choose(newCount: Int, newSource: PeopleSource) {
-        denied = false
-        if (newCount == 0 || PeoplePicks.hasPermission(context, newSource)) {
-            latest(newCount, newSource)
-        } else {
-            pending = newCount to newSource
-            ask.launch(newSource.permission)
-        }
+        if (granted) latest(PeoplePicks.DEFAULT_COUNT)
     }
     Section("Remind me of people") {
         SwitchRow(
             "Remind me of random people",
-            "When it rings, shows ${if (count > 0) "$count" else "a few"} random people from your ${source.label.lowercase()}, " +
+            "When it rings, shows ${if (count > 0) "$count" else "a few"} random people from your contacts, " +
                 "as a nudge to get in touch. Stays on your phone; nothing is sent anywhere.",
             count > 0,
-        ) { on -> choose(if (on) PeoplePicks.DEFAULT_COUNT else 0, source) }
-        if (count > 0) {
-            Text("Pick from", style = MaterialTheme.typography.labelLarge)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PeopleSource.entries.forEach { s ->
-                    FilterChip(selected = source == s, onClick = { choose(count, s) }, label = { Text(s.label) })
-                }
+        ) { on ->
+            denied = false
+            when {
+                !on -> latest(0)
+                PeoplePicks.hasPermission(context) -> latest(PeoplePicks.DEFAULT_COUNT)
+                else -> ask.launch(PeoplePicks.PERMISSION)
             }
+        }
+        if (count > 0) {
             Text("How many people", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PeoplePicks.COUNTS.forEach { n ->
-                    FilterChip(selected = count == n, onClick = { choose(n, source) }, label = { Text("$n") })
+                    FilterChip(selected = count == n, onClick = { latest(n) }, label = { Text("$n") })
                 }
             }
         }
         if (denied) {
             Text(
-                "Access to your ${pending.second.label.lowercase()} was not allowed, so there is nobody to show. " +
-                    "You can allow it in the phone's app settings.",
+                "Access to your contacts was not allowed, so there is nobody to show. You can allow it in the phone's app settings.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
             )
         }
