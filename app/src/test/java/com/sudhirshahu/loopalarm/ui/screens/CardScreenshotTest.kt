@@ -175,26 +175,28 @@ class CardScreenshotTest {
         File(File("build/screenshots").apply { mkdirs() }, "picture-editor.png").outputStream().use { out.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    /** What a reminder with "Pick people to call" shows after it rang: five random people with Call buttons. */
-    @Test fun callList() {
+    /** What a reminder with "Remind me of people" shows after it rang: five random people from the contacts. */
+    @Test fun peopleList() {
         val people = listOf(
-            com.sudhirshahu.loopalarm.data.CallPick("Asha Verma", "+91 98765 43210"),
-            com.sudhirshahu.loopalarm.data.CallPick("Ravi (office)", "099999 11111"),
-            com.sudhirshahu.loopalarm.data.CallPick("Mum", "+91 91234 56789"),
-            com.sudhirshahu.loopalarm.data.CallPick("+91 90000 12345", "+91 90000 12345"),
-            com.sudhirshahu.loopalarm.data.CallPick("Dr. Sharma", "080 2345 6789"),
+            com.sudhirshahu.loopalarm.data.Person("Asha Verma", "+91 98765 43210"),
+            com.sudhirshahu.loopalarm.data.Person("Ravi (office)", "099999 11111"),
+            com.sudhirshahu.loopalarm.data.Person("Mum", "+91 91234 56789"),
+            com.sudhirshahu.loopalarm.data.Person("+91 90000 12345", "+91 90000 12345"),
+            com.sudhirshahu.loopalarm.data.Person("Dr. Sharma", "080 2345 6789"),
         )
         val a = Alarm(
-            id = 4, name = "Keep in touch", icon = "📞", intervalValue = 30, startMinute = 18 * 60, callPicks = 5,
-            notes = "- Ask how they are\n- Just a short call is fine",
-            callList = com.sudhirshahu.loopalarm.data.CallPicks.encode(people),
+            id = 4, name = "Keep in touch", icon = "👥", intervalValue = 30, startMinute = 18 * 60, peopleCount = 5,
+            notes = "- Ask how they are\n- Share one good thing from this week",
+            peopleList = com.sudhirshahu.loopalarm.data.PeoplePicks.encode(people),
         )
-        shoot("call-list", ThemeMode.LIGHT) { ReminderDetailsScreen(a, false, {}, {}, { _, _ -> }, {}, {}, {}) }
+        shoot("people-list", ThemeMode.LIGHT) { ReminderDetailsScreen(a, false, {}, {}, { _, _ -> }, {}, {}, {}) }
     }
 
-    /** The "Call someone" section of the editor, switched on. */
-    @Test fun callSection() = shoot("call-section", ThemeMode.LIGHT) {
-        Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) { CallPicksSection(5) {} }
+    /** The "Remind me of people" section of the editor, switched on. */
+    @Test fun peopleSection() = shoot("people-section", ThemeMode.LIGHT) {
+        Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) {
+            PeoplePicksSection(5, com.sudhirshahu.loopalarm.data.PeopleSource.CONTACTS) { _, _ -> }
+        }
     }
 
     /** The first screen a new user sees. */

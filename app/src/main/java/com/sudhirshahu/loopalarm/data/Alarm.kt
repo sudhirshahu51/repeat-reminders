@@ -25,10 +25,15 @@ data class Alarm(
     @ColumnInfo(defaultValue = "") val icon: String = "",
     /** reminders with the same group name are listed together; empty means ungrouped */
     @ColumnInfo(defaultValue = "") val groupName: String = "",
-    /** when it rings, suggest this many random people from the call log to call; 0 = off (see [CallPicks]) */
-    @ColumnInfo(defaultValue = "0") val callPicks: Int = 0,
-    /** the people picked the last time it rang, one "name<TAB>number" per line; shown on its page with Call buttons */
-    @ColumnInfo(defaultValue = "") val callList: String = "",
+    /**
+     * when it rings, remind me of this many random people from [source]; 0 = off (see [PeoplePicks]).
+     * The column names are from 1.8.0, when this was a "call someone" feature, and kept so saved data still loads.
+     */
+    @ColumnInfo(name = "callPicks", defaultValue = "0") val peopleCount: Int = 0,
+    /** the people picked the last time it rang, one "name<TAB>number" per line; shown on its page */
+    @ColumnInfo(name = "callList", defaultValue = "") val peopleList: String = "",
+    /** where the people come from: index into [PeopleSource] */
+    @ColumnInfo(defaultValue = "0") val peopleFrom: Int = 0,
     /** free-text notes, shown on the card and when the reminder rings */
     @ColumnInfo(defaultValue = "") val notes: String = "",
 
@@ -91,8 +96,10 @@ data class Alarm(
     /** The reminder's pictures in order; stored in [imageFile]. */
     val images: List<String> get() = imageFile.split('|').map { it.trim() }.filter { it.isNotEmpty() }
 
-    /** The people to call picked the last time it rang; see [callPicks]. */
-    val calls: List<CallPick> get() = CallPicks.decode(callList)
+    /** The people picked the last time it rang; see [peopleCount]. */
+    val people: List<Person> get() = PeoplePicks.decode(peopleList)
+
+    val source: PeopleSource get() = PeopleSource.entries.getOrElse(peopleFrom) { PeopleSource.CONTACTS }
 
     fun withImages(names: List<String>): Alarm = copy(imageFile = names.filter { it.isNotBlank() }.joinToString("|"))
 }

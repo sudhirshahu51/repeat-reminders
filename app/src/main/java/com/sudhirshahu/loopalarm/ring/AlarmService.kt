@@ -25,7 +25,9 @@ import com.sudhirshahu.loopalarm.app
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
 import com.sudhirshahu.loopalarm.data.CallBehavior
-import com.sudhirshahu.loopalarm.data.CallPicks
+import com.sudhirshahu.loopalarm.data.PeopleSource
+import com.sudhirshahu.loopalarm.data.PeoplePicks
+import com.sudhirshahu.loopalarm.data.Person
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.NotePoints
@@ -152,18 +154,15 @@ class AlarmService : Service() {
         // Loaded before the session starts so a Dismiss can't arrive between the session and the sound.
         val imageFile = alarms.firstNotNullOfOrNull { it.images.firstOrNull() }.orEmpty()
         val picture = withContext(Dispatchers.IO) { ImageStore.load(this@AlarmService, imageFile) }
-        // "Call someone" reminders: new random people from the call log each time it rings, kept on the reminder so
-        // they can still be called from its page after the ring ends. Saved before the alarm screen loads them.
-        val callPicks = withContext(Dispatchers.IO) {
-            val wanted = alarms.filter { it.callPicks > 0 }
-            if (wanted.isEmpty() || !CallPicks.hasPermission(this@AlarmService)) {
-                emptyList()
-            } else {
-                val recent = CallPicks.recent(this@AlarmService)
-                wanted.flatMap { a ->
-                    CallPicks.pick(recent, a.callPicks).also { dao.setCallList(a.id, CallPicks.encode(it)) }
-                }.distinct()
-            }
+        // "Remind me of people" reminders: new random people from their contacts (or call log) each time it rings, kept
+        // on the reminder so they can still be seen on its page after the ring ends. Saved before the alarm screen loads them.
+        val picked = withContext(Dispatchers.IO) {
+            val pool = HashMap<PeopleSource, List<Person>>() // each source is read once, even for several reminders
+            alarms.filter { it.peopleCount > 0 }.flatMap { a ->
+                val everyone = pool.getOrPut(a.source) { PeoplePicks.all(this@AlarmService, a.source) }
+                // Without permission (or an empty list) the reminder keeps whoever it picked last time.
+                if (everyone.isEmpty()) emptyList() else PeoplePicks.pick(everyone, a.peopleCount).also { dao.setPeopleList(a.id, PeoplePicks.encode(it)) }
+            }.distinct()
         }
 
         val historyIds = alarms.map {
@@ -178,8 +177,8 @@ class AlarmService : Service() {
         // With their bullets / numbers / checkboxes, for the notification and the pop-up.
         val notes = alarms.flatMap { NotePoints.displayLines(it.notes) }.joinToString("\n")
         val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes, alarms.map { it.id })
-        // The notification lists the people to call too, as plain lines (the Call buttons are on the reminder's page).
-        val noteLines = listOf(notes) + callPicks.map { "📞 ${if (it.hasName) "${it.name} · ${it.number}" else it.number}" }
+        // The notification lists the people too, as plain lines (they are also on the reminder's page).
+        val noteLines = listOf(notes) + picked.map { "👥 ${if (it.hasName) "${it.name} · ${it.number}" else it.number}" }
         RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly

@@ -96,9 +96,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.content.IntentCompat
 import com.sudhirshahu.loopalarm.data.Alarm
-import com.sudhirshahu.loopalarm.data.CallPicks
 import com.sudhirshahu.loopalarm.data.EndMode
 import com.sudhirshahu.loopalarm.data.ImageStore
+import com.sudhirshahu.loopalarm.data.PeoplePicks
+import com.sudhirshahu.loopalarm.data.PeopleSource
 import com.sudhirshahu.loopalarm.data.ScheduleMode
 import com.sudhirshahu.loopalarm.data.SoundType
 import com.sudhirshahu.loopalarm.ring.BeepSynth
@@ -166,7 +167,9 @@ fun AlarmEditScreen(
                 NotesEditor(a.notes) { a = a.copy(notes = it) }
             }
             // Switching it off also forgets the people picked last time (the privacy policy says so).
-            CallPicksSection(a.callPicks) { a = a.copy(callPicks = it, callList = if (it == 0) "" else a.callList) }
+            PeoplePicksSection(a.peopleCount, a.source) { n, src ->
+                a = a.copy(peopleCount = n, peopleFrom = src.ordinal, peopleList = if (n == 0 || src != a.source) "" else a.peopleList)
+            }
             PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {
                 SwitchRow(
@@ -458,43 +461,55 @@ private fun ScheduleSection(a: Alarm, onChange: (Alarm) -> Unit) {
 private fun utcDate(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
 
 /**
- * "Pick people to call": when the reminder rings, a few random people from the call log are suggested with a Call
- * button. Needs the call log permission, asked here when the switch is turned on. [count] 0 means off.
+ * "Remind me of people": when the reminder rings, a few random people from the contacts (or the call log) are shown.
+ * Needs the matching permission, asked here when the switch is turned on or the source is changed. [count] 0 means off.
  */
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-internal fun CallPicksSection(count: Int, onChange: (Int) -> Unit) {
+internal fun PeoplePicksSection(count: Int, source: PeopleSource, onChange: (Int, PeopleSource) -> Unit) {
     val context = LocalContext.current
     val latest by rememberUpdatedState(onChange)
     var denied by remember { mutableStateOf(false) }
+    // What to apply once the permission for its source has been granted.
+    var pending by remember { mutableStateOf(count to source) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted
-        if (granted) latest(CallPicks.DEFAULT_COUNT)
+        if (granted) latest(pending.first, pending.second)
     }
-    Section("Call someone") {
-        SwitchRow(
-            "Pick people to call",
-            "When it rings, suggests ${if (count > 0) "$count" else "a few"} random people from your recent calls, " +
-                "with a Call button. Read on your phone only; nothing is saved or sent.",
-            count > 0,
-        ) { on ->
-            when {
-                !on -> latest(0)
-                CallPicks.hasPermission(context) -> latest(CallPicks.DEFAULT_COUNT)
-                else -> ask.launch(android.Manifest.permission.READ_CALL_LOG)
-            }
+    fun choose(newCount: Int, newSource: PeopleSource) {
+        denied = false
+        if (newCount == 0 || PeoplePicks.hasPermission(context, newSource)) {
+            latest(newCount, newSource)
+        } else {
+            pending = newCount to newSource
+            ask.launch(newSource.permission)
         }
+    }
+    Section("Remind me of people") {
+        SwitchRow(
+            "Remind me of random people",
+            "When it rings, shows ${if (count > 0) "$count" else "a few"} random people from your ${source.label.lowercase()}, " +
+                "as a nudge to get in touch. Stays on your phone; nothing is sent anywhere.",
+            count > 0,
+        ) { on -> choose(if (on) PeoplePicks.DEFAULT_COUNT else 0, source) }
         if (count > 0) {
+            Text("Pick from", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PeopleSource.entries.forEach { s ->
+                    FilterChip(selected = source == s, onClick = { choose(count, s) }, label = { Text(s.label) })
+                }
+            }
             Text("How many people", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CallPicks.COUNTS.forEach { n ->
-                    FilterChip(selected = count == n, onClick = { latest(n) }, label = { Text("$n") })
+                PeoplePicks.COUNTS.forEach { n ->
+                    FilterChip(selected = count == n, onClick = { choose(n, source) }, label = { Text("$n") })
                 }
             }
         }
         if (denied) {
             Text(
-                "Call log access was not allowed, so there is nobody to suggest. You can allow it in the phone's app settings.",
+                "Access to your ${pending.second.label.lowercase()} was not allowed, so there is nobody to show. " +
+                    "You can allow it in the phone's app settings.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
             )
         }
