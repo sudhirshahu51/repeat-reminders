@@ -7,8 +7,8 @@ Everything to paste into Play Console is below, in the order Play Console asks f
 | App name | Repeat Reminders |
 | Package | `com.sudhirshahu.loopalarm` (permanent) |
 | Upload file | `app/build/outputs/bundle/release/app-release.aab` |
-| Privacy policy | https://nzwqw1y2ia.execute-api.ap-south-1.amazonaws.com/privacy.html |
-| Website | https://nzwqw1y2ia.execute-api.ap-south-1.amazonaws.com/ |
+| Privacy policy | https://sudhirshahu51.github.io/repeat-reminders/privacy.html |
+| Website | https://sudhirshahu51.github.io/repeat-reminders/ |
 | Contact email | sudhirkumarshahu80@gmail.com |
 | Icon | `store/icon-512.png` |
 | Feature graphic | `store/feature-graphic-1024x500.png` |
@@ -85,7 +85,7 @@ In Play Console, open **Home**, then **Create app**:
 
 | Section | Answer |
 |---|---|
-| Privacy policy | https://nzwqw1y2ia.execute-api.ap-south-1.amazonaws.com/privacy.html |
+| Privacy policy | https://sudhirshahu51.github.io/repeat-reminders/privacy.html |
 | Ads | No, my app does not contain ads |
 | App access | All functionality is available without special access |
 | Content rating | Start the questionnaire. Category: **All other app types**. Answer **No** to every question (violence, sexuality, language, controlled substances, user interaction, sharing location, digital purchases). The expected rating is Everyone / 3+. |

@@ -204,7 +204,7 @@ fun SettingsScreen(
     }
 }
 
-private const val PRIVACY_URL = "https://nzwqw1y2ia.execute-api.ap-south-1.amazonaws.com/privacy.html"
+private const val PRIVACY_URL = "https://sudhirshahu51.github.io/repeat-reminders/privacy.html"
 private const val SUPPORT_EMAIL = "sudhirkumarshahu80@gmail.com"
 
 @Composable
