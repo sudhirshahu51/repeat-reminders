@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -68,6 +69,11 @@ data class AppSettings(
     val defaultRingSec: Int = 30,
     /** "Remind me of random people" is available (off until the user turns it on and allows contacts access) */
     val peopleReminders: Boolean = false,
+    /** the one "people" reminder made when it is turned on: how many people, and at what time of day (6 PM) */
+    val peopleCount: Int = 5,
+    val peopleMinute: Int = 18 * 60,
+    /** id of that reminder, 0 when there is none */
+    val peopleAlarmId: Long = 0,
 ) {
     /** A new reminder (from [base]) that rings the way the user prefers. */
     fun newAlarm(base: Alarm = Alarm()): Alarm = base.copy(
@@ -95,6 +101,9 @@ class SettingsRepository(private val context: Context) {
         val defGradualSec = intPreferencesKey("default_gradual_sec")
         val defRingSec = intPreferencesKey("default_ring_sec")
         val people = booleanPreferencesKey("people_reminders")
+        val peopleCount = intPreferencesKey("people_count")
+        val peopleMinute = intPreferencesKey("people_minute")
+        val peopleAlarmId = longPreferencesKey("people_alarm_id")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { it.toSettings() }
@@ -119,6 +128,9 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.defGradualSec] = s.defaultGradualSec
             prefs[Keys.defRingSec] = s.defaultRingSec
             prefs[Keys.people] = s.peopleReminders
+            prefs[Keys.peopleCount] = s.peopleCount
+            prefs[Keys.peopleMinute] = s.peopleMinute
+            prefs[Keys.peopleAlarmId] = s.peopleAlarmId
         }
     }
 
@@ -140,6 +152,9 @@ class SettingsRepository(private val context: Context) {
             defaultGradualSec = this[Keys.defGradualSec] ?: d.defaultGradualSec,
             defaultRingSec = this[Keys.defRingSec] ?: d.defaultRingSec,
             peopleReminders = this[Keys.people] ?: d.peopleReminders,
+            peopleCount = this[Keys.peopleCount] ?: d.peopleCount,
+            peopleMinute = this[Keys.peopleMinute] ?: d.peopleMinute,
+            peopleAlarmId = this[Keys.peopleAlarmId] ?: d.peopleAlarmId,
         )
     }
 

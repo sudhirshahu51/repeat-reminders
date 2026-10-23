@@ -264,7 +264,6 @@ private fun AppRoot(
                     AlarmEditScreen(
                         initial = a,
                         use24 = use24,
-                        peopleEnabled = settings.peopleReminders,
                         groups = groups,
                         onBack = { nav.popBackStack() },
                         onSave = { vm.save(it); draft = null; nav.popBackStack() },

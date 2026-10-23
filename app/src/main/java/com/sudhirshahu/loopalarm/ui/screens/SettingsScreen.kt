@@ -23,6 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
+import com.sudhirshahu.loopalarm.util.Fmt
+import com.sudhirshahu.loopalarm.ui.components.TimePickerDialog
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -131,7 +136,7 @@ fun SettingsScreen(
         }
 
         Group("Reminders of people") {
-            PeopleToggle(settings.peopleReminders) { v -> onChange { it.copy(peopleReminders = v) } }
+            PeopleSettings(settings, Fmt.is24h(LocalContext.current, settings.timeFormat), onChange)
         }
 
         Group("Notifications") {
@@ -217,29 +222,62 @@ private fun Group(title: String, content: @Composable () -> Unit) {
     }
 }
 
-/** Contacts access is asked only here, when the user turns this on; if it is refused the switch stays off. */
+/**
+ * The "people" reminder: one reminder of its own (made when this is turned on), at 6 PM with 5 people unless changed here.
+ * Contacts access is asked only when the switch is turned on; if it is refused the switch stays off.
+ */
 @Composable
-private fun PeopleToggle(on: Boolean, onChange: (Boolean) -> Unit) {
+internal fun PeopleSettings(settings: AppSettings, use24: Boolean, onChange: ((AppSettings) -> AppSettings) -> Unit) {
     val context = LocalContext.current
     var denied by remember { mutableStateOf(false) }
+    var pickTime by remember { mutableStateOf(false) }
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         denied = !granted
-        onChange(granted)
+        onChange { it.copy(peopleReminders = granted) }
     }
     Toggle(
         "Remind me of random people",
-        "Adds a switch to each reminder to show a few random people from your contacts when it rings. " +
+        "A reminder of its own that shows a few random people from your contacts, as a nudge to get in touch. " +
             "Contacts access is asked only when you turn this on. Nothing leaves your phone.",
-        on,
+        settings.peopleReminders,
     ) { v ->
         denied = false
-        if (!v || PeoplePicks.hasPermission(context)) onChange(v) else ask.launch(PeoplePicks.PERMISSION)
+        if (!v || PeoplePicks.hasPermission(context)) onChange { it.copy(peopleReminders = v) } else ask.launch(PeoplePicks.PERMISSION)
+    }
+    if (settings.peopleReminders) {
+        Row(
+            Modifier.fillMaxWidth().clickable { pickTime = true }.padding(vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("Time", Modifier.weight(1f))
+            Text(Fmt.minuteOfDay(settings.peopleMinute, use24), style = MaterialTheme.typography.titleMedium)
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("How many people", Modifier.weight(1f))
+            IconButton(
+                onClick = { onChange { it.copy(peopleCount = (it.peopleCount - 1).coerceAtLeast(1)) } },
+                enabled = settings.peopleCount > 1,
+            ) { Icon(Icons.Filled.Remove, "Fewer people") }
+            Text("${settings.peopleCount}", style = MaterialTheme.typography.titleMedium)
+            IconButton(
+                onClick = { onChange { it.copy(peopleCount = (it.peopleCount + 1).coerceAtMost(20)) } },
+                enabled = settings.peopleCount < 20,
+            ) { Icon(Icons.Filled.Add, "More people") }
+        }
+        Text(
+            "Rings once a day. It appears in your reminders list, where you can also turn it off or change the sound.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
     if (denied) {
         Text(
             "Contacts access was not allowed, so this stays off. You can allow it in the phone's app settings.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
         )
+    }
+    if (pickTime) TimePickerDialog("Time to remind", settings.peopleMinute, use24, { pickTime = false }) {
+        onChange { s -> s.copy(peopleMinute = it) }
+        pickTime = false
     }
 }
 

@@ -36,6 +36,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         reschedule()
+        app.appScope.launch { syncPeopleAlarm(applySettings = false) }
     }
 
     /** Rescheduling runs in the app scope so leaving a screen never drops it. */
@@ -100,6 +101,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val after = app.settings.current()
         // The launcher icon shows the background choice with a notebook page in the accent colour.
         if (after.appIcon != before.appIcon || after.accent.notebook != before.accent.notebook) AppIcons.apply(app, after.appIcon, after.accent)
+        if (after.peopleReminders != before.peopleReminders || after.peopleCount != before.peopleCount ||
+            after.peopleMinute != before.peopleMinute
+        ) syncPeopleAlarm(applySettings = true)
         reschedule() // refresh the next-alarm notification
+    }
+
+    /**
+     * "Remind me of random people" is one reminder of its own: made when the Settings switch is turned on (6 PM, 5 people
+     * unless changed), kept in step with the time and number chosen there, and removed when the switch is turned off.
+     * No other reminder shows people. With [applySettings] false (app start) nothing is created or changed, so a reminder
+     * the user deleted stays deleted.
+     */
+    private suspend fun syncPeopleAlarm(applySettings: Boolean) {
+        var s = app.settings.current()
+        val existing = if (s.peopleAlarmId != 0L) alarmDao.get(s.peopleAlarmId) else null
+        if (applySettings) {
+            if (!s.peopleReminders) {
+                existing?.let { alarmDao.delete(it) }
+                if (s.peopleAlarmId != 0L) app.settings.update { it.copy(peopleAlarmId = 0) }
+            } else if (existing == null) {
+                val id = alarmDao.upsert(
+                    s.newAlarm(
+                        Alarm(
+                            name = "People to remember", icon = "\uD83D\uDC65", repeating = false,
+                            startMinute = s.peopleMinute, peopleCount = s.peopleCount,
+                        ),
+                    ),
+                )
+                app.settings.update { it.copy(peopleAlarmId = id) }
+            } else if (existing.startMinute != s.peopleMinute || existing.peopleCount != s.peopleCount) {
+                alarmDao.upsert(existing.copy(startMinute = s.peopleMinute, peopleCount = s.peopleCount, snoozeUntil = 0, skipUntil = 0))
+            }
+            s = app.settings.current()
+        }
+        // From 1.8.2: reminders that had the people switch of their own lose it.
+        alarmDao.getAll().filter { it.peopleCount > 0 && it.id != s.peopleAlarmId }
+            .forEach { alarmDao.upsert(it.copy(peopleCount = 0, peopleList = "")) }
     }
 }

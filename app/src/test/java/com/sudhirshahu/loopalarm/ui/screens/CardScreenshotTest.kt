@@ -192,10 +192,10 @@ class CardScreenshotTest {
         shoot("people-list", ThemeMode.LIGHT) { ReminderDetailsScreen(a, false, {}, {}, { _, _ -> }, {}, {}, {}) }
     }
 
-    /** The "Remind me of people" section of the editor, switched on. */
+    /** The "Remind me of random people" group in Settings, switched on. */
     @Test fun peopleSection() = shoot("people-section", ThemeMode.LIGHT) {
         Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp)) {
-            PeoplePicksSection(5) {}
+            PeopleSettings(com.sudhirshahu.loopalarm.data.AppSettings(peopleReminders = true), false) {}
         }
     }
 

@@ -156,7 +156,7 @@ class AlarmService : Service() {
         // "Remind me of people" reminders: new random people from the contacts each time it rings, kept on the reminder
         // so they can still be seen on its page after the ring ends. Saved before the alarm screen loads them.
         val picked = withContext(Dispatchers.IO) {
-            val wanted = if (settings.peopleReminders) alarms.filter { it.peopleCount > 0 } else emptyList()
+            val wanted = if (settings.peopleReminders) alarms.filter { it.peopleCount > 0 && it.id == settings.peopleAlarmId } else emptyList()
             // The contacts are read once, even for several reminders. Without permission (or an empty list) a reminder
             // keeps whoever it picked last time.
             val everyone = if (wanted.isEmpty()) emptyList() else PeoplePicks.all(this@AlarmService)
