@@ -113,8 +113,8 @@ fun NotePointsView(
 private fun BulletDot(style: TextStyle, colour: Color) {
     val density = LocalDensity.current
     val line = with(density) { (if (style.lineHeight.isSp) style.lineHeight else style.fontSize * 1.4f).toDp() }
-    val dot = with(density) { (style.fontSize * 0.42f).toDp() }
-    Box(Modifier.width(18.dp).height(line), contentAlignment = Alignment.Center) {
+    val dot = with(density) { (style.fontSize * 0.6f).toDp() }
+    Box(Modifier.width(22.dp).height(line), contentAlignment = Alignment.Center) {
         Box(Modifier.size(dot).background(colour, CircleShape))
     }
 }

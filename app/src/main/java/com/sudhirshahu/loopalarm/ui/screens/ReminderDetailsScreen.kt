@@ -109,7 +109,7 @@ internal fun ReminderDetailsContent(
 
         // Below, the full width for the title and the description (the notes, as their bullet / number / checklist points)
         Column(Modifier.fillMaxWidth()) {
-            Text(a.displayName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.SemiBold)
+            Text(a.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             if (a.notes.isNotBlank()) NotePointsView(a.notes, Modifier.padding(top = 10.dp), onChange = onNotesChange)
         }
 

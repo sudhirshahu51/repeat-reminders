@@ -30,7 +30,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.sudhirshahu.loopalarm.data.PeoplePicks
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -122,6 +130,10 @@ fun SettingsScreen(
             SoundDefaultsSection(settings, onChange)
         }
 
+        Group("Reminders of people") {
+            PeopleToggle(settings.peopleReminders) { v -> onChange { it.copy(peopleReminders = v) } }
+        }
+
         Group("Notifications") {
             Toggle("Show next alarm in the notification bar", "Ongoing notification with a countdown and a Skip button",
                 settings.showNextAlarmNotification) { v -> onChange { it.copy(showNextAlarmNotification = v) } }
@@ -202,6 +214,32 @@ private fun Group(title: String, content: @Composable () -> Unit) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             content()
         }
+    }
+}
+
+/** Contacts access is asked only here, when the user turns this on; if it is refused the switch stays off. */
+@Composable
+private fun PeopleToggle(on: Boolean, onChange: (Boolean) -> Unit) {
+    val context = LocalContext.current
+    var denied by remember { mutableStateOf(false) }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        denied = !granted
+        onChange(granted)
+    }
+    Toggle(
+        "Remind me of random people",
+        "Adds a switch to each reminder to show a few random people from your contacts when it rings. " +
+            "Contacts access is asked only when you turn this on. Nothing leaves your phone.",
+        on,
+    ) { v ->
+        denied = false
+        if (!v || PeoplePicks.hasPermission(context)) onChange(v) else ask.launch(PeoplePicks.PERMISSION)
+    }
+    if (denied) {
+        Text(
+            "Contacts access was not allowed, so this stays off. You can allow it in the phone's app settings.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 

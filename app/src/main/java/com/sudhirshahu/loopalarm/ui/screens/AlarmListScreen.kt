@@ -57,6 +57,9 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sudhirshahu.loopalarm.R
@@ -95,6 +98,12 @@ fun AlarmListScreen(
     }
     val soonest = alarms.filter { it.enabled }.mapNotNull { a -> nextByAlarm[a.id]?.let { a to it } }.minByOrNull { it.second }
     var collapsed by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var query by rememberSaveable { mutableStateOf("") }
+    val q = query.trim()
+    // Search by name, group, notes or the people picked.
+    val shown = if (q.isEmpty()) alarms else alarms.filter { a ->
+        listOf(a.displayName, a.groupName, a.notes, a.peopleList).any { it.contains(q, ignoreCase = true) }
+    }
 
     Box(Modifier.fillMaxSize().padding(contentPadding)) {
         LazyColumn(
@@ -116,6 +125,18 @@ fun AlarmListScreen(
                             )
                         }
                     }
+                }
+            }
+            if (alarms.isNotEmpty()) {
+                item {
+                    OutlinedTextField(
+                        value = query, onValueChange = { query = it }, singleLine = true,
+                        placeholder = { Text("Search reminders") },
+                        leadingIcon = { Icon(Icons.Filled.Search, null) },
+                        trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { query = "" }) { Icon(Icons.Filled.Close, "Clear search") } },
+                        shape = RoundedCornerShape(28.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
             item {
@@ -144,8 +165,11 @@ fun AlarmListScreen(
                     }
                 }
             }
+            if (alarms.isNotEmpty() && shown.isEmpty()) {
+                item { Text("No reminders match \"$q\"", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 24.dp)) }
+            }
             // Ungrouped reminders first, then each group under its own header.
-            alarms.groupBy { it.groupName.trim() }.toSortedMap(compareBy(String.CASE_INSENSITIVE_ORDER) { it }).forEach { (group, members) ->
+            shown.groupBy { it.groupName.trim() }.toSortedMap(compareBy(String.CASE_INSENSITIVE_ORDER) { it }).forEach { (group, members) ->
                 if (group.isNotEmpty()) {
                     item(key = "group:$group") {
                         GroupHeader(
@@ -290,7 +314,7 @@ internal fun AlarmCard(
                 }
                 Column(Modifier.padding(end = 12.dp)) {
                     Text(
-                        a.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold, color = text,
+                        a.displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = text,
                         modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
                     )
                     DetailRow(Icons.Outlined.Repeat, Fmt.summary(a, use24), soft)

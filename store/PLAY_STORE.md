@@ -108,7 +108,7 @@ The optional calendar permission (birthday import) and reminder pictures are rea
 
 ### Contacts permission
 
-"Remind me of random people" (1.8.2) reads the contacts (`READ_CONTACTS`), only after the user switches it on for a reminder. Play allows this permission for apps that need it, but it counts as sensitive: declare it in the Permissions form and describe it as optional and used on the device only. The picked people are read and kept on the device only, so the data safety answer stays **No** for collection. The app does not use the restricted call log permission.
+"Remind me of random people" (1.8.2) reads the contacts (`READ_CONTACTS`), only after the user turns on "Remind me of random people" in Settings (never at install or first launch). Play allows this permission for apps that need it, but it counts as sensitive: declare it in the Permissions form and describe it as optional and used on the device only. The picked people are read and kept on the device only, so the data safety answer stays **No** for collection. The app does not use the restricted call log permission.
 
 ### Permission declarations
 

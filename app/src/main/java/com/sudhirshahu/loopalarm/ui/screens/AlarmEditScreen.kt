@@ -126,6 +126,8 @@ import java.time.ZoneOffset
 fun AlarmEditScreen(
     initial: Alarm,
     use24: Boolean,
+    /** "Remind me of random people" is turned on in Settings */
+    peopleEnabled: Boolean = false,
     /** existing group names, offered as suggestions */
     groups: List<String>,
     onBack: () -> Unit,
@@ -166,7 +168,7 @@ fun AlarmEditScreen(
                 NotesEditor(a.notes) { a = a.copy(notes = it) }
             }
             // Switching it off also forgets the people picked last time (the privacy policy says so).
-            PeoplePicksSection(a.peopleCount) { n -> a = a.copy(peopleCount = n, peopleList = if (n == 0) "" else a.peopleList) }
+            if (peopleEnabled || a.peopleCount > 0) PeoplePicksSection(a.peopleCount) { n -> a = a.copy(peopleCount = n, peopleList = if (n == 0) "" else a.peopleList) }
             PictureSection(a.images) { a = a.withImages(it) }
             Section("Repeat / Single alarm") {
                 SwitchRow(

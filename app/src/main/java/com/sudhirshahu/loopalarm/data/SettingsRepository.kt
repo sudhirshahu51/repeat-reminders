@@ -66,6 +66,8 @@ data class AppSettings(
     val defaultGradual: Boolean = true,
     val defaultGradualSec: Int = 5,
     val defaultRingSec: Int = 30,
+    /** "Remind me of random people" is available (off until the user turns it on and allows contacts access) */
+    val peopleReminders: Boolean = false,
 ) {
     /** A new reminder (from [base]) that rings the way the user prefers. */
     fun newAlarm(base: Alarm = Alarm()): Alarm = base.copy(
@@ -92,6 +94,7 @@ class SettingsRepository(private val context: Context) {
         val defGradual = booleanPreferencesKey("default_gradual")
         val defGradualSec = intPreferencesKey("default_gradual_sec")
         val defRingSec = intPreferencesKey("default_ring_sec")
+        val people = booleanPreferencesKey("people_reminders")
     }
 
     val settings: Flow<AppSettings> = context.dataStore.data.map { it.toSettings() }
@@ -115,6 +118,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.defGradual] = s.defaultGradual
             prefs[Keys.defGradualSec] = s.defaultGradualSec
             prefs[Keys.defRingSec] = s.defaultRingSec
+            prefs[Keys.people] = s.peopleReminders
         }
     }
 
@@ -135,6 +139,7 @@ class SettingsRepository(private val context: Context) {
             defaultGradual = this[Keys.defGradual] ?: d.defaultGradual,
             defaultGradualSec = this[Keys.defGradualSec] ?: d.defaultGradualSec,
             defaultRingSec = this[Keys.defRingSec] ?: d.defaultRingSec,
+            peopleReminders = this[Keys.people] ?: d.peopleReminders,
         )
     }
 
