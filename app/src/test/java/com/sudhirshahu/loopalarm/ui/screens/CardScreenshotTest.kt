@@ -64,9 +64,33 @@ class CardScreenshotTest {
     private fun Cards() {
         Column(
             Modifier.width(411.dp).background(MaterialTheme.colorScheme.background).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             samples.forEach { (a, next) -> AlarmCard(a, next, now, false, { _, _ -> }, {}, {}, {}, {}) }
+        }
+    }
+
+    /** History: each ring of the people reminder lists the people it showed. */
+    @Test fun historyPeople() = shoot("history-people", ThemeMode.LIGHT) {
+        val people = com.sudhirshahu.loopalarm.data.PeoplePicks.encode(
+            listOf(
+                com.sudhirshahu.loopalarm.data.Person("Asha Verma", "+91 98765 43210"),
+                com.sudhirshahu.loopalarm.data.Person("Mum", "+91 91234 56789"),
+                com.sudhirshahu.loopalarm.data.Person("", "+91 90000 12345"),
+            ),
+        )
+        val entries = listOf(
+            com.sudhirshahu.loopalarm.data.HistoryEntry(
+                id = 1, alarmId = 9, alarmName = "People to remember", scheduledAt = now - 3_600_000L, firedAt = now - 3_600_000L,
+                outcome = com.sudhirshahu.loopalarm.data.Outcome.DISMISSED, people = people,
+            ),
+            com.sudhirshahu.loopalarm.data.HistoryEntry(
+                id = 2, alarmId = 1, alarmName = "Drink water", scheduledAt = now - 7_200_000L, firedAt = now - 7_200_000L,
+                outcome = com.sudhirshahu.loopalarm.data.Outcome.TIMED_OUT,
+            ),
+        )
+        Column(Modifier.width(411.dp).background(MaterialTheme.colorScheme.background)) {
+            HistoryScreen(entries, false, androidx.compose.foundation.layout.PaddingValues(), {})
         }
     }
 

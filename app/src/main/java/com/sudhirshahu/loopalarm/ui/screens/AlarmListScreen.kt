@@ -108,7 +108,7 @@ fun AlarmListScreen(
     Box(Modifier.fillMaxSize().padding(contentPadding)) {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             if (missingPermissions > 0) {
                 item {

@@ -160,13 +160,18 @@ class AlarmService : Service() {
             // The contacts are read once, even for several reminders. Without permission (or an empty list) a reminder
             // keeps whoever it picked last time.
             val everyone = if (wanted.isEmpty()) emptyList() else PeoplePicks.all(this@AlarmService)
-            if (everyone.isEmpty()) emptyList() else wanted.flatMap { a ->
-                PeoplePicks.pick(everyone, a.peopleCount).also { dao.setPeopleList(a.id, PeoplePicks.encode(it)) }
-            }.distinct()
+            if (everyone.isEmpty()) emptyMap() else wanted.associate { a ->
+                a.id to PeoplePicks.pick(everyone, a.peopleCount).also { dao.setPeopleList(a.id, PeoplePicks.encode(it)) }
+            }
         }
 
         val historyIds = alarms.map {
-            history.insert(HistoryEntry(alarmId = it.id, alarmName = it.displayName, scheduledAt = scheduledAt, firedAt = now))
+            history.insert(
+                HistoryEntry(
+                    alarmId = it.id, alarmName = it.displayName, scheduledAt = scheduledAt, firedAt = now,
+                    people = PeoplePicks.encode(picked[it.id].orEmpty()),
+                ),
+            )
         }
         val primary = alarms.first()
         val s = Session(alarms, historyIds, now, behavior == CallBehavior.VIBRATE, settings)
@@ -177,14 +182,12 @@ class AlarmService : Service() {
         // With their bullets / numbers / checkboxes, for the notification and the pop-up.
         val notes = alarms.flatMap { NotePoints.displayLines(it.notes) }.joinToString("\n")
         val ringing = Ringing(names, now, primary.snoozeMinutes, subtitle, imageFile, icon, notes, alarms.map { it.id })
-        // The notification lists the people too, as plain lines (they are also on the reminder's page).
-        val noteLines = listOf(notes) + picked.map { "👥 ${if (it.hasName) "${it.name} · ${it.number}" else it.number}" }
         RingingState.mutable.value = ringing
 
         val showScreen = primary.showPostScreen && !s.vibrateOnly
         // While the phone is in use, a compact card over the current app replaces the full alarm screen.
         val usePopup = showScreen && settings.popupOverApps && isPhoneInUse() && popup.canShow()
-        goForeground(ringingNotification(primary, names, icon, noteLines.filter { it.isNotEmpty() }.joinToString("\n"), now, use24, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
+        goForeground(ringingNotification(primary, names, icon, fullScreen = showScreen && !usePopup, quiet = usePopup, picture))
         if (usePopup) {
             popup.show(
                 ringing, picture?.asImageBitmap(), settings, Fmt.time(now, use24),
@@ -280,7 +283,7 @@ class AlarmService : Service() {
 
     /** [quiet] posts on a low-importance channel so no heads-up appears on top of the pop-up card. */
     private fun ringingNotification(
-        a: Alarm, names: String, icon: String, notes: String, firedAt: Long, use24: Boolean, fullScreen: Boolean, quiet: Boolean, picture: Bitmap?,
+        a: Alarm, names: String, icon: String, fullScreen: Boolean, quiet: Boolean, picture: Bitmap?,
     ): android.app.Notification {
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val dismiss = PendingIntent.getService(this, 10, Intent(this, AlarmService::class.java).setAction(ACTION_DISMISS), flags)
@@ -289,12 +292,6 @@ class AlarmService : Service() {
         return NotificationCompat.Builder(this, if (quiet) Notifications.CHANNEL_RINGING_QUIET else Notifications.CHANNEL_RINGING)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(if (icon.isBlank()) names else "$icon $names")
-            .setContentText(notes.ifEmpty { "${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}" })
-            .apply {
-                if (picture == null && notes.isNotEmpty()) {
-                    setStyle(NotificationCompat.BigTextStyle().bigText("${Fmt.time(firedAt, use24)} · ${Fmt.interval(a)}\n$notes"))
-                }
-            }
             // Large icon: the reminder picture (set below), else its emoji, else the app icon.
             .apply { if (picture == null) setLargeIcon(if (icon.isNotBlank()) ReminderIcons.bitmap(icon) else AppIcons.bitmap(this@AlarmService)) }
             .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -302,8 +299,8 @@ class AlarmService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOngoing(true)
             .setSilent(true)
-            .setWhen(firedAt)
-            .setShowWhen(true)
+            // Title only: the notes, people and time are on the reminder's page, which tapping it opens.
+            .setShowWhen(false)
             // Tapping it always opens the alarm screen: the reminder's page with Snooze and Dismiss.
             .setContentIntent(screen)
             .apply { if (fullScreen) setFullScreenIntent(screen, true) }

@@ -1,5 +1,6 @@
 package com.sudhirshahu.loopalarm.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -23,4 +24,6 @@ data class HistoryEntry(
     val firedAt: Long,
     val endedAt: Long = 0,
     val outcome: Outcome = Outcome.RINGING,
+    /** the people this ring reminded of, one "name<TAB>number" per line (see [PeoplePicks.encode]); empty for other reminders */
+    @ColumnInfo(defaultValue = "") val people: String = "",
 )

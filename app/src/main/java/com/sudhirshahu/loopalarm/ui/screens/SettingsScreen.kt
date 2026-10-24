@@ -227,6 +227,7 @@ private fun Group(title: String, content: @Composable () -> Unit) {
  * Contacts access is asked only when the switch is turned on; if it is refused the switch stays off.
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun PeopleSettings(settings: AppSettings, use24: Boolean, onChange: ((AppSettings) -> AppSettings) -> Unit) {
     val context = LocalContext.current
     var denied by remember { mutableStateOf(false) }
@@ -264,8 +265,19 @@ internal fun PeopleSettings(settings: AppSettings, use24: Boolean, onChange: ((A
                 enabled = settings.peopleCount < 20,
             ) { Icon(Icons.Filled.Add, "More people") }
         }
+        Text("How often", style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(0 to "Once a day", 30 to "Every 30 min", 60 to "Every hour", 120 to "Every 2 hours", 180 to "Every 3 hours").forEach { (min, label) ->
+                FilterChip(
+                    selected = settings.peopleRepeatMin == min,
+                    onClick = { onChange { it.copy(peopleRepeatMin = min) } },
+                    label = { Text(label) },
+                )
+            }
+        }
         Text(
-            "Rings once a day. It appears in your reminders list, where you can also turn it off or change the sound.",
+            (if (settings.peopleRepeatMin == 0) "Rings once a day. " else "Repeats from the time above until midnight, with new people each time. ") +
+                "It appears in your reminders list, where you can also turn it off or change the sound. Each ring is kept in History with the people it showed.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

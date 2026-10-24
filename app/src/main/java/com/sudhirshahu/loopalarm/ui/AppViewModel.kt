@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.sudhirshahu.loopalarm.app
 import com.sudhirshahu.loopalarm.data.Alarm
 import com.sudhirshahu.loopalarm.data.AppSettings
+import com.sudhirshahu.loopalarm.data.EndMode
+import com.sudhirshahu.loopalarm.data.IntervalUnit
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.ImageStore
 import com.sudhirshahu.loopalarm.data.notebook
@@ -102,7 +104,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         // The launcher icon shows the background choice with a notebook page in the accent colour.
         if (after.appIcon != before.appIcon || after.accent.notebook != before.accent.notebook) AppIcons.apply(app, after.appIcon, after.accent)
         if (after.peopleReminders != before.peopleReminders || after.peopleCount != before.peopleCount ||
-            after.peopleMinute != before.peopleMinute
+            after.peopleMinute != before.peopleMinute || after.peopleRepeatMin != before.peopleRepeatMin
         ) syncPeopleAlarm(applySettings = true)
         reschedule() // refresh the next-alarm notification
     }
@@ -124,14 +126,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val id = alarmDao.upsert(
                     s.newAlarm(
                         Alarm(
-                            name = "People to remember", icon = "\uD83D\uDC65", repeating = false,
+                            name = "People to remember", icon = "\uD83D\uDC65",
                             startMinute = s.peopleMinute, peopleCount = s.peopleCount,
-                        ),
+                        ).withPeopleSchedule(s),
                     ),
                 )
                 app.settings.update { it.copy(peopleAlarmId = id) }
-            } else if (existing.startMinute != s.peopleMinute || existing.peopleCount != s.peopleCount) {
-                alarmDao.upsert(existing.copy(startMinute = s.peopleMinute, peopleCount = s.peopleCount, snoozeUntil = 0, skipUntil = 0))
+            } else {
+                val updated = existing.copy(startMinute = s.peopleMinute, peopleCount = s.peopleCount).withPeopleSchedule(s)
+                if (updated != existing) alarmDao.upsert(updated.copy(snoozeUntil = 0, skipUntil = 0))
             }
             s = app.settings.current()
         }
@@ -139,4 +142,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         alarmDao.getAll().filter { it.peopleCount > 0 && it.id != s.peopleAlarmId }
             .forEach { alarmDao.upsert(it.copy(peopleCount = 0, peopleList = "")) }
     }
+}
+
+/** Once a day, or every [AppSettings.peopleRepeatMin] minutes from the start time until midnight. */
+private fun Alarm.withPeopleSchedule(s: AppSettings): Alarm {
+    val every = s.peopleRepeatMin
+    return if (every <= 0) copy(repeating = false)
+    else if (every % 60 == 0) copy(repeating = true, intervalValue = every / 60, intervalUnit = IntervalUnit.HOURS, endMode = EndMode.END_OF_DAY)
+    else copy(repeating = true, intervalValue = every, intervalUnit = IntervalUnit.MINUTES, endMode = EndMode.END_OF_DAY)
 }

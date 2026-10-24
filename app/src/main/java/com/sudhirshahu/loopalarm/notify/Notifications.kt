@@ -132,9 +132,7 @@ object Notifications {
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setLargeIcon(AppIcons.bitmap(context))
             .setContentTitle(name)
-            .setContentText("Rang at ${Fmt.time(firedAt, use24)} · ${outcome.label}")
-            .setWhen(firedAt)
-            .setShowWhen(true)
+            .setShowWhen(false)
             .setAutoCancel(true)
             .setSilent(true)
             .setGroup(GROUP_LOG)
@@ -142,7 +140,7 @@ object Notifications {
             .build()
         val id = ID_LOG_BASE + (alarmId % 10_000).toInt()
         post(context, id, n)
-        postLogSummary(context, id, "$name · Rang at ${Fmt.time(firedAt, use24)} · ${outcome.label}")
+        postLogSummary(context, id, name)
     }
 
     /**

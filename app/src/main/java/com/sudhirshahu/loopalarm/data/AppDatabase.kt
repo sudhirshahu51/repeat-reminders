@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [Alarm::class, HistoryEntry::class], version = 6, exportSchema = true)
+@Database(entities = [Alarm::class, HistoryEntry::class], version = 7, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun historyDao(): HistoryDao
@@ -51,7 +51,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /** 7: the people each ring reminded of, kept in the history. */
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE history ADD COLUMN people TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
         fun create(context: Context, name: String = "loop_alarm.db"): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
+            Room.databaseBuilder(context, AppDatabase::class.java, name).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7).build()
     }
 }

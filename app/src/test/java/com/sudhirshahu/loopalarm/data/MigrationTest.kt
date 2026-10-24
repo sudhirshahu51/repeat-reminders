@@ -97,6 +97,6 @@ class MigrationTest {
     private fun dbName(version: Int) = "migration-test-$version.db"
 
     private companion object {
-        const val CURRENT_VERSION = 6
+        const val CURRENT_VERSION = 7
     }
 }

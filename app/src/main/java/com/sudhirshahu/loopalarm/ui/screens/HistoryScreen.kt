@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.sudhirshahu.loopalarm.data.HistoryEntry
 import com.sudhirshahu.loopalarm.data.Outcome
+import com.sudhirshahu.loopalarm.data.PeoplePicks
 import com.sudhirshahu.loopalarm.util.Fmt
 import java.time.Instant
 import java.time.ZoneId
@@ -68,6 +69,10 @@ fun HistoryScreen(history: List<HistoryEntry>, use24: Boolean, contentPadding: P
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(e.outcome.label)
                             val late = (e.firedAt - e.scheduledAt) / 1000
+                            // The people this ring reminded of.
+                            PeoplePicks.decode(e.people).forEach { person ->
+                                Text("\uD83D\uDC65 ${if (person.hasName) "${person.name} · ${person.number}" else person.number}", style = MaterialTheme.typography.bodySmall)
+                            }
                             if (late > 60) Text("Scheduled ${Fmt.time(e.scheduledAt, use24)}, rang $late s late", style = MaterialTheme.typography.bodySmall)
                         }
                     },

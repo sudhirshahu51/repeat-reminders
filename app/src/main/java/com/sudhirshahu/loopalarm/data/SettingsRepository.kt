@@ -72,6 +72,8 @@ data class AppSettings(
     /** the one "people" reminder made when it is turned on: how many people, and at what time of day (6 PM) */
     val peopleCount: Int = 5,
     val peopleMinute: Int = 18 * 60,
+    /** 0 = rings once a day; otherwise it repeats every this many minutes until midnight */
+    val peopleRepeatMin: Int = 0,
     /** id of that reminder, 0 when there is none */
     val peopleAlarmId: Long = 0,
 ) {
@@ -103,6 +105,7 @@ class SettingsRepository(private val context: Context) {
         val people = booleanPreferencesKey("people_reminders")
         val peopleCount = intPreferencesKey("people_count")
         val peopleMinute = intPreferencesKey("people_minute")
+        val peopleRepeat = intPreferencesKey("people_repeat_min")
         val peopleAlarmId = longPreferencesKey("people_alarm_id")
     }
 
@@ -130,6 +133,7 @@ class SettingsRepository(private val context: Context) {
             prefs[Keys.people] = s.peopleReminders
             prefs[Keys.peopleCount] = s.peopleCount
             prefs[Keys.peopleMinute] = s.peopleMinute
+            prefs[Keys.peopleRepeat] = s.peopleRepeatMin
             prefs[Keys.peopleAlarmId] = s.peopleAlarmId
         }
     }
@@ -154,6 +158,7 @@ class SettingsRepository(private val context: Context) {
             peopleReminders = this[Keys.people] ?: d.peopleReminders,
             peopleCount = this[Keys.peopleCount] ?: d.peopleCount,
             peopleMinute = this[Keys.peopleMinute] ?: d.peopleMinute,
+            peopleRepeatMin = this[Keys.peopleRepeat] ?: d.peopleRepeatMin,
             peopleAlarmId = this[Keys.peopleAlarmId] ?: d.peopleAlarmId,
         )
     }
