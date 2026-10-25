@@ -97,9 +97,12 @@ fun AlarmListScreen(
         alarms.associate { a -> a.id to if (a.enabled) ScheduleCalculator.nextIncludingSnooze(a, now) else null }
     }
     val soonest = alarms.filter { it.enabled }.mapNotNull { a -> nextByAlarm[a.id]?.let { a to it } }.minByOrNull { it.second }
-    var collapsed by rememberSaveable { mutableStateOf(setOf<String>()) }
+    // Groups start minimized; the ones the user opens are remembered here.
+    var expanded by rememberSaveable { mutableStateOf(setOf<String>()) }
     var query by rememberSaveable { mutableStateOf("") }
     val q = query.trim()
+    // While searching, every group is open so the matches can be seen.
+    val isCollapsed = { group: String -> q.isEmpty() && group !in expanded }
     // Search by name, group, notes or the people picked.
     val shown = if (q.isEmpty()) alarms else alarms.filter { a ->
         listOf(a.displayName, a.groupName, a.notes, a.peopleList).any { it.contains(q, ignoreCase = true) }
@@ -173,13 +176,13 @@ fun AlarmListScreen(
                 if (group.isNotEmpty()) {
                     item(key = "group:$group") {
                         GroupHeader(
-                            group, members.size, members.any { it.enabled }, group in collapsed,
-                            onToggleCollapsed = { collapsed = if (group in collapsed) collapsed - group else collapsed + group },
+                            group, members.size, members.any { it.enabled }, isCollapsed(group),
+                            onToggleCollapsed = { expanded = if (group in expanded) expanded - group else expanded + group },
                             onToggle = { onToggleGroup(group, it) },
                         )
                     }
                 }
-                if (group.isEmpty() || group !in collapsed) {
+                if (group.isEmpty() || !isCollapsed(group)) {
                     items(members, key = { it.id }) { a ->
                         AlarmCard(a, nextByAlarm[a.id], now, use24, onToggle, onEdit, onDuplicate, onDelete, onRingNow, onOpen)
                     }
