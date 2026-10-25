@@ -1,6 +1,6 @@
 """Generates the launcher icon for every colour choice, plus a preview image.
 
-The icon is a notebook with three to-do rows and tabs, a yellow reminder bell over the bottom-right corner,
+The icon is a page with three coloured dots and lines, a yellow two-tone reminder bell over the bottom-right corner,
 on a gradient. Settings > App icon sets the gradient; the accent colour (Settings > Theme) sets the notebook page
 (white for the Wallpaper and White accents). Every pair is its own icon and activity-alias.
 
@@ -36,7 +36,6 @@ NOTEBOOKS = {
     "pink": "#D81B60",
     "purple": "#8E24AA",
 }
-TABS = ["#26C6DA", "#FF9800", "#FFE082", "#8BC34A"]
 ROWS = ["#1E88E5", "#E53935", "#FB8C00"]  # to-do bullets, top to bottom
 LINE = "#BDBDBD"
 
@@ -95,32 +94,77 @@ def mix(c, other, t):
     return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
 
 
+# The artwork is laid out in the coordinates of the 1024 px reference picture (page, three dots, lines, bell) and scaled
+# into the 108 space: IMG_K sets the size, and the middle of the picture lands on (54, 54).
+IMG_K = 0.068
+IMG_CX, IMG_CY = 521.5, 522.5
+BELL_LIGHT, BELL_DARK = "#FAC328", "#E9B20D"
+
+
+def _t(x, y):
+    return 54 + (x - IMG_CX) * IMG_K, 54 + (y - IMG_CY) * IMG_K
+
+
+def _pt(x, y):
+    X, Y = _t(x, y)
+    return f"{X:.2f},{Y:.2f}"
+
+
+def img_rrect(x1, y1, x2, y2, r):
+    k = r * IMG_K
+    a = f"A{k:.2f},{k:.2f} 0 0 1 "
+    return (f"M{_pt(x1 + r, y1)} L{_pt(x2 - r, y1)} {a}{_pt(x2, y1 + r)} L{_pt(x2, y2 - r)} {a}{_pt(x2 - r, y2)} "
+            f"L{_pt(x1 + r, y2)} {a}{_pt(x1, y2 - r)} L{_pt(x1, y1 + r)} {a}{_pt(x1 + r, y1)} Z")
+
+
+def img_circle(cx, cy, r):
+    k = r * IMG_K
+    return (f"M{_pt(cx - r, cy)} A{k:.2f},{k:.2f} 0 1 1 {_pt(cx + r, cy)} A{k:.2f},{k:.2f} 0 1 1 {_pt(cx - r, cy)} Z")
+
+
+def img_bell():
+    """Flat two-tone bell (left half lighter), as in the reference picture; returns [(kind, d, style)]."""
+    p = _pt
+    k = lambda r: f"{r * IMG_K:.2f}"
+    clapper_l = f"M{p(693, 877)} H{_t(748, 0)[0]:.2f} V{_t(0, 932)[1]:.2f} A{k(55)},{k(55)} 0 0 1 {p(693, 877)} Z"
+    clapper_r = f"M{p(748, 877)} H{_t(803, 0)[0]:.2f} A{k(55)},{k(55)} 0 0 1 {p(748, 932)} Z"
+    left = (f"M{p(585, 865)} L{p(585, 835)} C{p(585, 812)} {p(625, 805)} {p(625, 760)} L{p(625, 705)} "
+            f"C{p(625, 640)} {p(680, 607)} {p(748, 607)} C{p(816, 607)} {p(868, 640)} {p(868, 705)} "
+            f"L{p(868, 760)} C{p(868, 805)} {p(910, 812)} {p(910, 835)} L{p(910, 865)} "
+            f"Q{p(910, 877)} {p(898, 877)} L{p(597, 877)} Q{p(585, 877)} {p(585, 865)} Z")
+    right = (f"M{p(748, 607)} C{p(816, 607)} {p(868, 640)} {p(868, 705)} L{p(868, 760)} "
+             f"C{p(868, 805)} {p(910, 812)} {p(910, 835)} L{p(910, 865)} Q{p(910, 877)} {p(898, 877)} L{p(748, 877)} Z")
+    knob_l = img_circle(748, 600, 34)
+    knob_r = f"M{p(748, 566)} A{k(34)},{k(34)} 0 0 1 {p(748, 634)} Z"
+    return [("fill", clapper_l, BELL_LIGHT), ("fill", clapper_r, BELL_DARK),
+            ("fill", knob_l, BELL_LIGHT), ("fill", knob_r, BELL_DARK),
+            ("fill", left, BELL_LIGHT), ("fill", right, BELL_DARK)]
+
+
 def foreground(page=None, night=False):
-    """List of (kind, d, style). kind: fill | grad | stroke | badge. [page] is the notebook colour; None is white."""
+    """List of (kind, d, style). kind: fill | grad | stroke. [page] is the page colour; None is white."""
     out = []
-    # tabs peeking out on the right
-    for i, c in enumerate(TABS):
-        out.append(("fill", rrect(BX + BW - 4, BY + 6 + i * 8.6, 8, 7.6, 1.8), c))
-    # page, slightly shaded towards the bottom
+    face = img_rrect(133, 105, 812, 885, 75)
+    shadow = img_rrect(133, 135, 812, 915, 75)  # the page's thickness, showing below it
     if page is None:
-        out.append(("grad", rrect(BX, BY, BW, BH, BR), ("#FFFFFF", "#E6E6E6", BX, BY, BX, BY + BH)))
+        out.append(("fill", shadow, "#E3E3E3"))
         if night:
-            out.append(("stroke", rrect(BX, BY, BW, BH, BR), (1.0, NIGHT_PAGE_EDGE)))
-        rows, line = ROWS, LINE
+            out.append(("stroke", shadow, (1.0, NIGHT_PAGE_EDGE)))
+        out.append(("fill", face, "#FFFFFF"))
+        dots, line = ROWS, LINE
     else:
         # coloured page with a white edge, so it still stands out on a background of the same colour
-        out.append(("grad", rrect(BX, BY, BW, BH, BR),
-                    (mix(page, "#FFFFFF", 0.12), mix(page, "#000000", 0.15), BX, BY, BX, BY + BH)))
-        out.append(("stroke", rrect(BX, BY, BW, BH, BR), (1.4, "#FFFFFF")))
-        rows, line = ["#FFFFFF"] * 3, mix(page, "#FFFFFF", 0.6)
-    # three to-do rows: target bullet and a line
-    for i, c in enumerate(rows):
-        cy = BY + 11 + i * 13
-        cx = BX + 10.5
-        out.append(("stroke", circle(cx, cy, 4.2), (1.9, c)))
-        out.append(("fill", circle(cx, cy, 2.0), c))
-        out.append(("stroke", f"M{cx + 8},{cy} H{BX + BW - 6}", (2.2, line)))
-    out.append(("badge", bell_path(BELL_X, BELL_Y, BELL_U), (BELL_FILL, BELL_EDGE)))
+        out.append(("fill", shadow, mix(page, "#000000", 0.3)))
+        gx, g0 = _t(0, 105)[0], _t(0, 105)[1]
+        out.append(("grad", face, (mix(page, "#FFFFFF", 0.12), mix(page, "#000000", 0.15), gx, g0, gx, _t(0, 885)[1])))
+        out.append(("stroke", face, (1.4, "#FFFFFF")))
+        dots, line = ["#FFFFFF"] * 3, mix(page, "#FFFFFF", 0.6)
+    for i, c in enumerate(dots):
+        cy = 285 + 210 * i
+        out.append(("fill", img_circle(302, cy, 83), c))
+        # a line is a round-capped stroke, so it starts and ends one cap radius inside the 415..732 span
+        out.append(("stroke", f"M{_pt(433, cy)} H{_t(714, 0)[0]:.2f}", (36 * IMG_K, line)))
+    out.extend(img_bell())
     return out
 
 

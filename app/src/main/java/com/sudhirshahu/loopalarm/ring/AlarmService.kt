@@ -35,7 +35,6 @@ import com.sudhirshahu.loopalarm.notify.Notifications
 import com.sudhirshahu.loopalarm.ui.RingActivity
 import com.sudhirshahu.loopalarm.util.AppIcons
 import com.sudhirshahu.loopalarm.util.Fmt
-import com.sudhirshahu.loopalarm.util.ReminderIcons
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -292,8 +291,8 @@ class AlarmService : Service() {
         return NotificationCompat.Builder(this, if (quiet) Notifications.CHANNEL_RINGING_QUIET else Notifications.CHANNEL_RINGING)
             .setSmallIcon(R.drawable.ic_stat_alarm)
             .setContentTitle(if (icon.isBlank()) names else "$icon $names")
-            // Large icon: the reminder picture (set below), else its emoji, else the app icon.
-            .apply { if (picture == null) setLargeIcon(if (icon.isNotBlank()) ReminderIcons.bitmap(icon) else AppIcons.bitmap(this@AlarmService)) }
+            // Large icon: the reminder picture (set below), else the app icon. The emoji is already in the title.
+            .apply { if (picture == null) setLargeIcon(AppIcons.bitmap(this@AlarmService)) }
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
